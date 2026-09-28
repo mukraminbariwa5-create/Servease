@@ -1,0 +1,27 @@
+# Local configuration (database passwords, API keys). Copy config/config.example.php instead.
+config/config.php
+
+# User uploads and runtime files
+uploads/avatars/*
+uploads/portfolio/*
+!uploads/avatars/.gitkeep
+!uploads/portfolio/.gitkeep
+storage/logs/*
+!storage/logs/.gitkeep
+storage/cache/*
+!storage/cache/.gitkeep
+storage/private/verification/*
+!storage/private/verification/.gitkeep
+!storage/private/verification/sample-id.pdf
+
+# Archived old versions and the unused prototype
+_old/
+fixoria-prototype/
+
+# Editor / OS / tooling
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+__pycache__/
+*.log

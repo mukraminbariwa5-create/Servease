@@ -1,0 +1,2 @@
+# Private files (logs, verification documents) are never served directly
+Require all denied
