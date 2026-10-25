@@ -90,11 +90,12 @@ Installing needs **HTTPS** (or `localhost`). It works on XAMPP when you open htt
 
 ## Tests
 
-`tests/` holds four automated suites (see [tests/README.md](tests/README.md)):
+`tests/` holds five automated suites (see [tests/README.md](tests/README.md)):
 - **test_flows.py**: ~110 end-to-end checks of every flow (including scheduling a quote, reschedule, cancel reasons, problem reports, suggestions and reminders) plus the permission and security rules
 - **test_browser.py**: 13 real-browser checks of the interactive forms
-- **test_ui.py**: 101 real-browser checks of the phone and laptop layouts (installable app, app bar, login-first entry, tab bar, banner carousel, categories, services and pros lists, service cards, laptop header bands, filter sheet, payment screen, fonts, no sideways scrolling, dark mode)
-- **test_crawl.py**: loads ~600 pages as each role and fails on any PHP error
+- **test_ui.py**: real-browser checks of the phone and laptop layouts (installable app, app bar, login-first entry, tab bar, banner carousel, categories, services and pros lists, service cards, laptop header bands, filter sheet, payment screen, fonts, no sideways scrolling, dark mode)
+- **test_brand.py**: checks the brand colours, including that the yellow logo and price tags stay yellow
+- **test_crawl.py**: loads every page it can reach as each role and fails on any PHP error
 
 ## Security
 
