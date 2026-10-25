@@ -90,12 +90,13 @@ Installing needs **HTTPS** (or `localhost`). It works on XAMPP when you open htt
 
 ## Tests
 
-`tests/` holds five automated suites (see [tests/README.md](tests/README.md)):
+`tests/` holds six automated suites (see [tests/README.md](tests/README.md)):
 - **test_flows.py**: ~110 end-to-end checks of every flow (including scheduling a quote, reschedule, cancel reasons, problem reports, suggestions and reminders) plus the permission and security rules
 - **test_browser.py**: 13 real-browser checks of the interactive forms
 - **test_ui.py**: real-browser checks of the phone and laptop layouts (installable app, app bar, login-first entry, tab bar, banner carousel, categories, services and pros lists, service cards, laptop header bands, filter sheet, payment screen, fonts, no sideways scrolling, dark mode)
 - **test_brand.py**: checks the brand colours, including that the yellow logo and price tags stay yellow
 - **test_crawl.py**: loads every page it can reach as each role and fails on any PHP error
+- **test_demo.py**: public demo mode: protected demo accounts, uploads off, visitors' own accounts still working, and the daily reset
 
 ## Security
 
@@ -171,6 +172,8 @@ New columns and tables are added automatically on the first page load after an u
 ## Deploying
 
 Upload the folder to any PHP 8 host with MySQL. Create the database, update `config/config.php`, run the installer once, then set `'env' => 'production'` and `'debug' => false`. Use HTTPS, which also enables secure cookies automatically and lets phones install Servease as an app. Free certificates from Let's Encrypt (offered by most hosts) are enough.
+
+**[DEPLOY.md](DEPLOY.md)** walks through putting Servease on free hosting (InfinityFree) as a **public portfolio demo**. Demo mode (`'public_demo' => true`) protects the demo accounts so one visitor can't lock out the next, turns uploads off, and puts the demo data back on the first visit of each day.
 
 ## Author & license
 

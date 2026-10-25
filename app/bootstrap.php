@@ -63,3 +63,6 @@ set_exception_handler(function (Throwable $e): void {
     $debug = config('app.debug') ? $e : null;
     echo View::render('errors/500', ['exception' => $debug], 'layouts/blank');
 });
+
+// ---- Public demo: put the demo data back once a day --------------------------
+Demo::dailyReset();

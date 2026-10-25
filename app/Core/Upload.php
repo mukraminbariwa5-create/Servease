@@ -16,6 +16,9 @@ final class Upload
      */
     public static function store(?array $file, string $folder, array $allowed = self::IMAGES, ?int $maxMb = null, bool $private = false): array
     {
+        if (Demo::uploadsBlocked()) {
+            return ['path' => null, 'error' => 'Uploads are turned off in the public demo.'];
+        }
         if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
             return ['path' => null, 'error' => 'Please choose a file.'];
         }

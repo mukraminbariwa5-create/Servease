@@ -192,7 +192,7 @@ final class AuthController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) back_with_errors(['email' => 'Enter a valid email address.'], '/forgot-password');
 
         $u = DB::one("SELECT * FROM users WHERE email = ? AND status = 'active'", [$email]);
-        if ($u) {
+        if ($u && !Demo::isDemoAccount($u)) {
             $token = bin2hex(random_bytes(32));
             DB::update('users', [
                 'reset_token_hash' => hash('sha256', $token),
@@ -242,6 +242,7 @@ final class AuthController
     private function userForResetToken(string $token): ?array
     {
         if (strlen($token) !== 64) return null;
-        return DB::one('SELECT * FROM users WHERE reset_token_hash = ? AND reset_expires_at > ?', [hash('sha256', $token), date('Y-m-d H:i:s')]);
+        $u = DB::one('SELECT * FROM users WHERE reset_token_hash = ? AND reset_expires_at > ?', [hash('sha256', $token), date('Y-m-d H:i:s')]);
+        return $u && !Demo::isDemoAccount($u) ? $u : null;
     }
 }

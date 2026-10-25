@@ -14,6 +14,9 @@ storage/private/verification/*
 !storage/private/verification/.gitkeep
 !storage/private/verification/sample-id.pdf
 
+# Upload package for hosting (made from the project, not part of it)
+deploy/
+
 # Archived old versions and the unused prototype
 _old/
 fixoria-prototype/

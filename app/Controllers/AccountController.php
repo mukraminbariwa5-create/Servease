@@ -22,6 +22,7 @@ final class AccountController
     public function update(): void
     {
         $u = require_auth();
+        Demo::guard($u, 'details', '/settings');
         $v = Validator::make($_POST, [
             'first_name' => 'required|max:80',
             'last_name'  => 'required|max:80',
@@ -56,6 +57,7 @@ final class AccountController
     public function password(): void
     {
         $u = require_auth();
+        Demo::guard($u, 'password', '/settings#password');
         if (!password_verify((string) ($_POST['current_password'] ?? ''), $u['password_hash'])) {
             back_with_errors(['current_password' => 'Your current password is incorrect.'], '/settings#password');
         }
@@ -71,6 +73,7 @@ final class AccountController
     {
         $u = require_auth();
         $back = ($_POST['return'] ?? '') === '/provider/profile' ? '/provider/profile' : '/settings';
+        Demo::guard($u, 'photo', $back);
         if (!empty($_POST['remove'])) {
             Upload::delete($u['avatar']);
             DB::update('users', ['avatar' => null], 'id = :id', ['id' => (int) $u['id']]);

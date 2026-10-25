@@ -12,6 +12,9 @@ python3 tests/test_flows.py     # ~110 end-to-end checks: flows, scheduling, res
 python3 tests/test_browser.py   # 13 real-browser checks of the interactive forms
 python3 tests/test_brand.py     # brand colours: design tokens namespaced --sv-*, no live SVG filters, and the yellow logo and price tags stay yellow even with a hostile browser-extension stylesheet injected (phone and laptop, light and dark)
 python3 tests/test_ui.py        # phone and laptop checks: installable app, app bar, login-first entry, tab bar, banner, categories, services, payment screen, overflow, dark mode
+
+# public demo mode (run separately, with  'app' => ['public_demo' => true]  in config/config.php)
+python3 tests/test_demo.py      # protected demo accounts, uploads off, visitors' own accounts still work, daily reset
 ```
 
 What `test_flows.py` covers:

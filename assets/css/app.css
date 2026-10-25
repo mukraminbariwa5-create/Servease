@@ -1096,6 +1096,7 @@ a.list-item:hover { background: var(--sv-surface-2); color: var(--sv-text); }
 .or { display: flex; align-items: center; gap: 12px; color: var(--sv-text-3); font-size: .8125rem; font-weight: 650; margin: 28px 0 14px; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--sv-border); }
 .demo-list { display: grid; gap: 8px; }
+.demo-note { margin: 12px 2px 0; color: var(--sv-text-3); font-size: .8125rem; text-align: center; }
 .demo-item { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; border-radius: var(--sv-radius); border: 1.5px solid var(--sv-field-bd);
   background: var(--sv-surface); font: inherit; text-align: left; cursor: pointer; color: var(--sv-text); transition: border-color .2s, background .2s, transform .25s var(--sv-ease); }
 .demo-item:hover { border-color: var(--sv-primary); background: color-mix(in srgb, var(--sv-primary-soft) 45%, var(--sv-surface)); transform: translateY(-1px); }

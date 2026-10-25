@@ -98,6 +98,10 @@ final class AdminController
             flash('error', 'Admin accounts can\'t be suspended here.');
             back('/admin/users');
         }
+        if (Demo::isDemoAccount($target)) {
+            flash('error', 'Demo accounts can\'t be suspended in the public demo, so the next visitor can still sign in with them.');
+            back('/admin/users');
+        }
         $new = $target['status'] === 'active' ? 'suspended' : 'active';
         DB::update('users', ['status' => $new], 'id = :id', ['id' => (int) $id]);
         flash('success', full_name($target) . ($new === 'suspended' ? ' has been suspended.' : ' has been reactivated.'));

@@ -17,6 +17,10 @@ return [
         'currency'  => '₱',
         // Shows one-click demo accounts on the sign-in page
         'demo'      => true,
+        // Public portfolio demo: protects the demo accounts, turns uploads off and puts the demo
+        // data back on the first visit of each day. Only for a public demo server (see DEPLOY.md).
+        'public_demo'      => false,
+        'demo_reset_daily' => true,
     ],
 
     'db' => [

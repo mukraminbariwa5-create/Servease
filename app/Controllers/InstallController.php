@@ -46,7 +46,13 @@ final class InstallController
     {
         $name = config('db.name');
         if (!preg_match('/^\w+$/', (string) $name)) throw new RuntimeException('Invalid database name in config.');
-        DB::pdo(false)->exec("CREATE DATABASE IF NOT EXISTS `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        try {
+            DB::pdo(false)->exec("CREATE DATABASE IF NOT EXISTS `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        } catch (PDOException $e) {
+            // Shared hosts (InfinityFree and others) create the database in their control panel and don't
+            // let accounts run CREATE DATABASE. Carry on if that database is already there.
+            try { DB::pdo(); } catch (PDOException $ignored) { throw $e; }
+        }
 
         $sql = file_get_contents(ROOT . '/database/schema.sql');
         $sql = preg_replace('/^\s*--.*$/m', '', $sql);

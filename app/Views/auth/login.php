@@ -43,4 +43,7 @@
       </button>
     <?php endforeach; ?>
   </div>
+  <?php if (Demo::on()): ?>
+    <p class="demo-note">This is a public demo that resets every day. Uploads are turned off.</p>
+  <?php endif; ?>
 <?php endif; ?>

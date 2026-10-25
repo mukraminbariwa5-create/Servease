@@ -138,7 +138,7 @@ return [
 
     // Auth and welcome
     'Log in' => 'Mag-log in', 'Create account' => 'Gumawa ng account', 'Email address' => 'Email address', 'Password' => 'Password',
-    'Forgot password?' => 'Nakalimutan ang password?', 'or try a demo account' => 'o subukan ang demo account', 'Show password' => 'Ipakita ang password',
+    'Forgot password?' => 'Nakalimutan ang password?', 'or try a demo account' => 'o subukan ang demo account', 'This is a public demo that resets every day. Uploads are turned off.' => 'Isa itong pampublikong demo na nire-reset araw-araw. Naka-off ang pag-upload.', 'Uploads are turned off in the public demo.' => 'Naka-off ang pag-upload sa pampublikong demo.', 'Show password' => 'Ipakita ang password',
     'Enter your password' => 'Ilagay ang password mo', 'Your bookings, quotes and messages are waiting.' => 'Naghihintay ang mga booking, quote at mensahe mo.',
     'Next' => 'Susunod', 'Skip' => 'Laktawan', 'Get started' => 'Magsimula', 'Already have an account?' => 'May account ka na?',
     'Create your account' => 'Gumawa ng account', 'Are you hiring, or offering a service?' => 'Magha-hire ka ba, o mag-aalok ng serbisyo?',

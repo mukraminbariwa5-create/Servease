@@ -6,7 +6,7 @@ DirectoryIndex index.php
     RewriteEngine On
 
     # Never serve application internals, private storage or archived code directly
-    RewriteRule ^(app|config|database|storage|tests|_old|fixoria-prototype)(/|$) - [F,L]
+    RewriteRule ^(app|config|database|storage|tests|deploy|_old|fixoria-prototype)(/|$) - [F,L]
     RewriteRule (^|/)\. - [F,L]
     RewriteRule \.(sql|md|log|env|ini)$ - [F,L,NC]
 
