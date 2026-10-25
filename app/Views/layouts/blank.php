@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" data-brand="<?= e(brand_theme()) ?>">
+<html lang="en">
 <head>
 <?= partial('head', ['title' => $title ?? null]) ?>
 </head>
-<body>
+<body class="<?= e($bodyClass ?? 'blank-body') ?>">
 <?= partial('flashes') ?>
 <main id="main"><?= $content ?></main>
 </body>

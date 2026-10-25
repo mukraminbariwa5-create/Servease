@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 /**
  * Creates realistic demo data so the marketplace looks alive on first run.
- * All demo accounts use the password: fixoria123
+ * All demo accounts use the password: servease123
  */
 final class Seeder
 {
-    private const PASSWORD = 'fixoria123';
+    private const PASSWORD = 'servease123';
     private string $hash;
     private array $cats = [];
 
@@ -17,11 +17,11 @@ final class Seeder
         $this->hash = password_hash(self::PASSWORD, PASSWORD_DEFAULT);
 
         $this->categories();
-        $admin = $this->user('admin', 'Alex', 'Reyes', 'admin@fixoria.test', 'Makati', 120);
+        $admin = $this->user('admin', 'Alex', 'Reyes', 'admin@servease.test', 'Makati', 120);
 
         // --- Demo client & provider (used on the sign-in page) -----------------
-        $client = $this->user('client', 'Maria', 'Santos', 'client@fixoria.test', 'Quezon City', 60);
-        $provider = $this->provider('Juan', 'Dela Cruz', 'provider@fixoria.test', 'plumbing', 'Quezon City', 9, 'verified', 75);
+        $client = $this->user('client', 'Maria', 'Santos', 'client@servease.test', 'Quezon City', 60);
+        $provider = $this->provider('Juan', 'Dela Cruz', 'provider@servease.test', 'plumbing', 'Quezon City', 9, 'verified', 75);
 
         // --- More providers --------------------------------------------------------
         $people = [
@@ -41,7 +41,7 @@ final class Seeder
         $providers = [$provider];
         foreach ($people as $i => [$f, $l, $cat, $city, $yrs]) {
             $status = $i % 9 === 5 ? 'pending' : ($i % 11 === 7 ? 'unverified' : 'verified');
-            $providers[] = $this->provider($f, $l, strtolower($f) . '.' . strtolower(str_replace(' ', '', $l)) . '@fixoria.test', $cat, $city, $yrs, $status, mt_rand(20, 110));
+            $providers[] = $this->provider($f, $l, strtolower($f) . '.' . strtolower(str_replace(' ', '', $l)) . '@servease.test', $cat, $city, $yrs, $status, mt_rand(20, 110));
         }
 
         // --- Clients ---------------------------------------------------------------
@@ -50,16 +50,17 @@ final class Seeder
                   ['Raffy', 'Ocampo', 'Quezon City'], ['Jessa', 'Manalo', 'Manila'], ['Kevin', 'Sy', 'Cebu City'],
                   ['Andrea', 'Valdez', 'Mandaluyong'], ['Luis', 'Padilla', 'Parañaque'], ['Hannah', 'Chua', 'Davao City'],
                   ['Enzo', 'Marquez', 'Marikina'], ['Sofia', 'Aguilar', 'Las Piñas'], ['Tomas', 'Yap', 'Caloocan']] as [$f, $l, $city]) {
-            $clients[] = $this->user('client', $f, $l, strtolower($f) . '.' . strtolower(str_replace(' ', '', $l)) . '@fixoria.test', $city, mt_rand(15, 100));
+            $clients[] = $this->user('client', $f, $l, strtolower($f) . '.' . strtolower(str_replace(' ', '', $l)) . '@servease.test', $city, mt_rand(15, 100));
         }
 
         // --- Past completed + paid + reviewed bookings (history for ratings & charts) ---
         foreach ($providers as $p) {
             if ($p['verification_status'] === 'unverified') continue;
-            $n = $p['id'] === $provider['id'] ? 9 : mt_rand(2, 8);
+            // Spread over six months so the earnings chart has a real shape; the demo pro gets a steady stream of work
+            $n = $p['id'] === $provider['id'] ? 24 : mt_rand(2, 8);
             for ($i = 0; $i < $n; $i++) {
                 $c = $clients[mt_rand(1, count($clients) - 1)];
-                $daysAgo = mt_rand(3, 88);
+                $daysAgo = $p['id'] === $provider['id'] ? 3 + (int) round($i * 172 / $n) + mt_rand(0, 5) : mt_rand(3, 170);
                 $this->historicBooking($c, $p, $daysAgo, mt_rand(1, 100) > 12);
             }
         }
@@ -109,7 +110,7 @@ final class Seeder
         $this->recomputeRatings();
 
         // --- Welcome notifications -----------------------------------------------------
-        notify($client['id'], 'welcome', 'Welcome to Fixoria, Maria!', 'Find trusted pros or post a job to get quotes.', '/dashboard');
+        notify($client['id'], 'welcome', 'Welcome to Servease, Maria!', 'Find trusted pros or post a job to get quotes.', '/dashboard');
         notify($provider['id'], 'booking', 'New booking request', 'Patricia requested “Replace bathroom faucet and shower head”.', '/bookings');
         notify($admin['id'], 'verification', 'Providers waiting for verification',
             'Review submitted documents in the verification queue.', '/admin/verifications');
@@ -166,6 +167,11 @@ final class Seeder
             'city' => $city, 'service_area' => $city . ' and nearby areas',
             'hourly_rate' => $rate, 'years_experience' => $years, 'skills' => $info['skills'],
             'is_available' => mt_rand(1, 10) > 2 ? 1 : 0,
+            // Most pros work Mon–Sat; some take Saturdays off or also work Sundays
+            // (derived from the id so the rest of the demo data stays the same)
+            'work_days' => ['1,2,3,4,5,6', '1,2,3,4,5,6', '1,2,3,4,5', '1,2,3,4,5,6,7', '2,3,4,5,6,7'][$u['id'] % 5],
+            'work_start' => ['07:00', '08:00', '08:00', '09:00'][$u['id'] % 4],
+            'work_end' => ['17:00', '18:00', '18:00', '19:00'][($u['id'] >> 1) % 4],
             'verification_status' => $verification,
             'verification_doc' => $verification === 'unverified' ? null : 'verification/sample-id.pdf',
             'verified_at' => $verification === 'verified' ? $u['created_at'] : null,
@@ -175,11 +181,24 @@ final class Seeder
             DB::insert('provider_services', [
                 'provider_id' => $u['id'], 'title' => $title, 'description' => $desc,
                 'price' => $price + 50 * mt_rand(-2, 4), 'price_unit' => $unit,
+                // Bigger jobs take longer; hourly and daily work is timed by the booking itself
+                'duration_hours' => in_array($unit, ['fixed', 'starting'], true) ? max(1, min(4, (int) round($price / 700))) : 1,
             ]);
         }
         $u['verification_status'] = $verification;
         $u['category'] = $cat;
         return $u;
+    }
+
+    /** A realistic receipt number for transfers (cash has none). */
+    private static function reference(string $method): ?string
+    {
+        return match ($method) {
+            'gcash' => (string) mt_rand(1000, 9999) . ' ' . mt_rand(100, 999) . ' ' . mt_rand(100000, 999999),
+            'maya'  => 'MY' . mt_rand(10000000, 99999999),
+            'bank_transfer' => 'FT' . mt_rand(100000000, 999999999),
+            default => null,
+        };
     }
 
     private function historicBooking(array $client, array $provider, int $daysAgo, bool $review): void
@@ -192,15 +211,16 @@ final class Seeder
         if (strtotime($completed) > time()) $completed = date('Y-m-d H:i:s', time() - 3600);
         $id = DB::insert('bookings', [
             'client_id' => $client['id'], 'provider_id' => $provider['id'], 'title' => $title,
-            'details' => 'Booked through Fixoria.', 'scheduled_date' => substr($completed, 0, 10), 'scheduled_time' => '09:00',
+            'details' => 'Booked through Servease.', 'scheduled_date' => substr($completed, 0, 10), 'scheduled_time' => '09:00',
             'city' => $client['city'], 'amount' => $amount, 'status' => 'completed', 'payment_status' => 'paid',
             'accepted_at' => $created, 'started_at' => $completed, 'completed_at' => $completed,
             'created_at' => $created, 'updated_at' => $completed,
         ]);
         $methods = ['cash', 'gcash', 'gcash', 'maya', 'bank_transfer'];
+        $method = $methods[mt_rand(0, 4)];
         DB::insert('payments', [
             'booking_id' => $id, 'payer_id' => $client['id'], 'payee_id' => $provider['id'], 'amount' => $amount,
-            'method' => $methods[mt_rand(0, 4)], 'channel' => 'direct', 'status' => 'paid',
+            'method' => $method, 'channel' => 'direct', 'status' => 'paid', 'reference' => self::reference($method),
             'paid_at' => $completed, 'created_at' => $completed,
         ]);
         $this->events($id, $client['id'], $provider['id'], $created, $completed, 'completed');

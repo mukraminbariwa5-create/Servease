@@ -2,6 +2,14 @@
 $uid = user_id();
 $lastId = $messages ? (int) end($messages)['id'] : 0;
 ?>
+<?php
+$unreadConvos = count(array_filter($list, fn($r) => !empty($r['unread'])));
+page_hero([
+    'crumbs' => [['Home', home_for(user())], ['Inbox', null]],
+    'title' => 'Inbox', 'lead' => 'Chat with pros and clients before and after you book.',
+    'stats' => [['message', '<strong>' . count($list) . '</strong> conversation' . (count($list) === 1 ? '' : 's')], ['bell', '<strong>' . $unreadConvos . '</strong> unread']],
+]);
+?>
 <div class="page-title"><div><h1>Messages</h1><p class="muted">Chat with pros and clients before and after you book.</p></div></div>
 
 <div class="card chat <?= $c ? 'has-active' : '' ?>">
@@ -24,10 +32,10 @@ $lastId = $messages ? (int) end($messages)['id'] : 0;
 
   <section class="chat-main" <?= $c ? 'data-chat data-poll="' . e(url('/messages/' . $c['id'] . '/poll')) . '" data-last="' . $lastId . '"' : '' ?>>
     <?php if (!$c): ?>
-      <div class="chat-empty"><div class="empty"><div class="empty-icon"><?= icon('message') ?></div><h3>Select a conversation</h3><p>Your messages with pros and clients appear here.</p></div></div>
+      <div class="chat-empty"><div class="empty"><?= empty_art('message') ?><h3>Select a conversation</h3><p>Your messages with pros and clients appear here.</p></div></div>
     <?php else: $o = $c['other']; ?>
       <header class="chat-head">
-        <a class="btn btn-ghost btn-icon btn-sm hide-lg" href="<?= e(url('/messages')) ?>" aria-label="Back to inbox"><?= icon('arrow-left') ?></a>
+        <a class="btn btn-ghost btn-icon btn-sm show-md" href="<?= e(url('/messages')) ?>" aria-label="Back to inbox"><?= icon('arrow-left') ?></a>
         <?= avatar($o, 'md') ?>
         <div class="grow" style="min-width:0">
           <div class="semibold truncate"><?= e(full_name($o)) ?></div>
@@ -39,8 +47,8 @@ $lastId = $messages ? (int) end($messages)['id'] : 0;
         <?php endif; ?>
       </header>
       <?php if (!empty($shared)): ?>
-        <div class="row row-wrap small" style="padding:10px 20px;border-bottom:1px solid var(--border);--gap:8px">
-          <span class="subtle">Bookings together:</span>
+        <div class="chat-shared small">
+          <span class="subtle nowrap"><?= icon('calendar', 'icon-sm') ?> Bookings:</span>
           <?php foreach ($shared as $s): ?><a class="chip" href="<?= e(url('/bookings/' . $s['id'])) ?>"><?= e(str_limit($s['title'], 34)) ?></a><?php endforeach; ?>
         </div>
       <?php endif; ?>
@@ -57,7 +65,7 @@ $lastId = $messages ? (int) end($messages)['id'] : 0;
       <form class="chat-form" method="post" action="<?= e(url('/messages/' . $c['id'])) ?>">
         <?= csrf_field() ?>
         <label class="sr-only" for="msg-body">Message</label>
-        <textarea class="textarea" id="msg-body" name="body" rows="1" maxlength="2000" placeholder="Write a message…" required></textarea>
+        <textarea class="textarea" id="msg-body" name="body" rows="1" maxlength="2000" placeholder="Write a message…" enterkeyhint="send" required></textarea>
         <button class="btn btn-primary btn-icon" type="submit" aria-label="Send" data-no-lock style="height:44px;width:44px"><?= icon('send') ?></button>
       </form>
     <?php endif; ?>

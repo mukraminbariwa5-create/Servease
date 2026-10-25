@@ -33,7 +33,7 @@ spl_autoload_register(function (string $class): void {
 
 // ---- Session -------------------------------------------------------------
 if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
-    session_name('fixoria_sid');
+    session_name('servease_sid');
     session_set_cookie_params([
         'lifetime' => 0,
         'path'     => base_path() ?: '/',

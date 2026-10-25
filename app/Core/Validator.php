@@ -40,7 +40,7 @@ final class Validator
             $empty = $value === null || $value === '' || $value === [];
 
             if ($empty) {
-                if (in_array('required', $rules, true)) $this->errors[$field] = "$label is required.";
+                if (in_array('required', $rules, true)) $this->errors[$field] = self::sentence("$label is required.");
                 else $this->clean[$field] = null;
                 continue;
             }
@@ -67,10 +67,16 @@ final class Validator
                     'exists'   => self::exists((string) $arg, $value) ? null : "Choose a valid $label.",
                     default    => null,
                 };
-                if ($error) { $this->errors[$field] = $error; break; }
+                if ($error) { $this->errors[$field] = self::sentence($error); break; }
             }
             if (!isset($this->errors[$field])) $this->clean[$field] = $value;
         }
+    }
+
+    /** Messages start with a capital letter even when the field label is lowercase ("date" → "Date can't…"). */
+    private static function sentence(string $msg): string
+    {
+        return mb_strtoupper(mb_substr($msg, 0, 1)) . mb_substr($msg, 1);
     }
 
     /** exists:table,column */

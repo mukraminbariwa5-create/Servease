@@ -3,7 +3,7 @@ Run against a freshly installed demo database:  php database/install.php && pyth
 """
 import os, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-B = os.environ.get('FIXORIA_URL', 'http://127.0.0.1:8000').rstrip('/')
+B = os.environ.get('SERVEASE_URL', 'http://127.0.0.1:8000').rstrip('/')
 MAIL_LOG = ROOT / 'storage' / 'logs' / 'mail.log'
 DB_HELPER = str(ROOT / 'tests' / 'db.php')
 import requests, re, sys
@@ -12,7 +12,7 @@ def session(email=None):
     s=requests.Session()
     if email:
         r=s.get(B+'/login'); tok=re.search(r'name="_token" value="([^"]+)"',r.text).group(1)
-        r=s.post(B+'/login',data={'_token':tok,'email':email,'password':'fixoria123'},allow_redirects=True)
+        r=s.post(B+'/login',data={'_token':tok,'email':email,'password':'servease123'},allow_redirects=True)
         assert '/login' not in r.url, ('login failed',email,r.url)
     return s
 def crawl(s,label,paths):
@@ -39,6 +39,6 @@ def crawl(s,label,paths):
                 if h not in seen: q.append(h)
     print(f'{label}: {len(seen)} pages, {bad} problems')
 crawl(session(),'guest',['/','/providers','/jobs','/how-it-works','/login','/register','/register?role=provider','/forgot-password','/providers/2','/jobs/1','/nope'])
-crawl(session('client@fixoria.test'),'client',['/dashboard','/bookings','/messages','/my/jobs','/saved','/settings','/notifications','/jobs/new','/providers/3/book'])
-crawl(session('provider@fixoria.test'),'provider',['/dashboard','/bookings','/messages','/my/quotes','/provider/profile','/settings','/notifications','/jobs'])
-crawl(session('admin@fixoria.test'),'admin',['/admin','/admin/users','/admin/verifications','/admin/categories','/admin/bookings','/admin/jobs','/admin/reviews','/admin/payments','/dashboard'])
+crawl(session('client@servease.test'),'client',['/dashboard','/bookings','/messages','/my/jobs','/saved','/settings','/notifications','/jobs/new','/providers/3/book'])
+crawl(session('provider@servease.test'),'provider',['/dashboard','/bookings','/messages','/my/quotes','/provider/profile','/settings','/notifications','/jobs'])
+crawl(session('admin@servease.test'),'admin',['/admin','/admin/users','/admin/verifications','/admin/categories','/admin/bookings','/admin/jobs','/admin/reviews','/admin/payments','/dashboard'])

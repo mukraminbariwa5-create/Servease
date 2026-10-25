@@ -13,6 +13,7 @@ final class AdminController
     private function render(string $view, array $data): void
     {
         $data['pendingCount'] = (int) DB::value("SELECT COUNT(*) FROM provider_profiles WHERE verification_status = 'pending'");
+        $data['issueCount'] = (int) DB::value("SELECT COUNT(*) FROM booking_issues WHERE status = 'open'");
         view('admin/' . $view, $data, 'layouts/admin');
     }
 
@@ -280,5 +281,49 @@ final class AdminController
         ReviewController::recompute((int) $r['provider_id']);
         flash('success', $r['is_hidden'] ? 'Review is visible again.' : 'Review hidden from the public profile.');
         back('/admin/reviews');
+    }
+
+    public function issues(): void
+    {
+        $tab = ($_GET['tab'] ?? 'open') === 'resolved' ? 'resolved' : 'open';
+        [$offset, $perPage, $page] = page_params(20);
+        $total = (int) DB::value('SELECT COUNT(*) FROM booking_issues WHERE status = ?', [$tab]);
+        $rows = DB::all(
+            "SELECT i.*, b.title, b.status AS booking_status, b.amount, b.client_id, b.provider_id,
+                    r.first_name AS r_first, r.last_name AS r_last, r.role AS r_role,
+                    c.first_name AS c_first, c.last_name AS c_last, p.first_name AS p_first, p.last_name AS p_last
+             FROM booking_issues i
+             JOIN bookings b ON b.id = i.booking_id
+             JOIN users r ON r.id = i.reporter_id
+             JOIN users c ON c.id = b.client_id
+             JOIN users p ON p.id = b.provider_id
+             WHERE i.status = ? ORDER BY i.created_at " . ($tab === 'open' ? 'ASC' : 'DESC') . " LIMIT ? OFFSET ?",
+            [$tab, $perPage, $offset]
+        );
+        $counts = [
+            'open' => (int) DB::value("SELECT COUNT(*) FROM booking_issues WHERE status = 'open'"),
+            'resolved' => (int) DB::value("SELECT COUNT(*) FROM booking_issues WHERE status = 'resolved'"),
+        ];
+        $this->render('issues', compact('rows', 'total', 'page', 'perPage', 'tab', 'counts') + ['title' => 'Reported problems', 'active' => 'issues']);
+    }
+
+    public function resolveIssue(string $id): void
+    {
+        $i = DB::one('SELECT i.*, b.title FROM booking_issues i JOIN bookings b ON b.id = i.booking_id WHERE i.id = ?', [(int) $id]);
+        if (!$i) abort(404);
+        $note = mb_substr(trim((string) ($_POST['admin_note'] ?? '')), 0, 255);
+        if (mb_strlen($note) < 5) {
+            flash('error', 'Write a short note for the customer and the pro (at least 5 characters).');
+            back('/admin/issues');
+        }
+        if ($i['status'] === 'open') {
+            DB::transaction(function () use ($i, $note) {
+                DB::update('booking_issues', ['status' => 'resolved', 'admin_note' => $note, 'resolved_at' => date('Y-m-d H:i:s')], 'id = :id', ['id' => (int) $i['id']]);
+                DB::insert('booking_events', ['booking_id' => (int) $i['booking_id'], 'actor_id' => (int) $this->admin['id'], 'event' => 'issue_resolved', 'note' => $note]);
+            });
+            notify((int) $i['reporter_id'], 'booking', 'Your report was resolved', 'Servease support: ' . $note, '/bookings/' . $i['booking_id']);
+            flash('success', 'Marked as resolved. The person who reported it has been notified.');
+        }
+        back('/admin/issues');
     }
 }

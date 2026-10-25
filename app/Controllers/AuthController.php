@@ -5,7 +5,7 @@ final class AuthController
 {
     private function guestOnly(): void
     {
-        if (user()) redirect('/dashboard');
+        if (user()) redirect(home_for(user()));
     }
 
     /* ---------------- Sign in ---------------- */
@@ -13,7 +13,7 @@ final class AuthController
     public function showLogin(): void
     {
         $this->guestOnly();
-        view('auth/login', ['title' => 'Sign in'], 'layouts/auth');
+        view('auth/login', ['title' => 'Log in', 'art' => 'verified', 'back' => '/welcome'], 'layouts/auth');
     }
 
     public function login(): void
@@ -51,23 +51,40 @@ final class AuthController
             header('Location: ' . $intended, true, 303);
             exit;
         }
-        redirect($u['role'] === 'admin' ? '/admin' : '/dashboard');
+        redirect(home_for($u));
     }
 
     public function logout(): void
     {
         Auth::logout();
         flash('success', 'You have been signed out.');
-        redirect('/');
+        redirect('/login');
     }
 
-    /* ---------------- Register ---------------- */
+    /* ---------------- Welcome (splash + intro slides + log in / create account) ---------------- */
+
+    public function welcome(): void
+    {
+        $this->guestOnly();
+        // Remember the intro was seen: next time a signed-out visitor goes straight to the login screen
+        setcookie(Router::INTRO_COOKIE, '1', [
+            'expires' => time() + 365 * 86400, 'path' => base_path() ?: '/', 'samesite' => 'Lax', 'httponly' => true,
+        ]);
+        view('auth/welcome', ['title' => 'Welcome'], 'layouts/blank');
+    }
+
+    /* ---------------- Sign up ---------------- */
 
     public function showRegister(): void
     {
         $this->guestOnly();
-        $role = ($_GET['role'] ?? '') === 'provider' ? 'provider' : 'client';
-        view('auth/register', ['title' => 'Create your account', 'role' => old('role', $role)], 'layouts/auth');
+        $role = (string) old('role', (string) ($_GET['role'] ?? ''));
+        if (!in_array($role, ['client', 'provider'], true)) {
+            // Step 1: choose how you'll use Servease
+            view('auth/role', ['title' => 'Create your account', 'art' => 'services', 'back' => '/welcome'], 'layouts/auth');
+            return;
+        }
+        view('auth/register', ['title' => 'Create your account', 'role' => $role, 'art' => $role === 'provider' ? 'booking' : 'services', 'back' => '/register'], 'layouts/auth');
     }
 
     public function register(): void
@@ -116,16 +133,16 @@ final class AuthController
         $u = DB::one('SELECT * FROM users WHERE id = ?', [$id]);
         $this->sendVerification($u, $token);
         Auth::login($u);
-        notify($id, 'welcome', 'Welcome to Fixoria, ' . $u['first_name'] . '!',
+        notify($id, 'welcome', 'Welcome to Servease, ' . $u['first_name'] . '!',
             $u['role'] === 'provider' ? 'Complete your pro profile so clients can find you.' : 'Find a pro or post your first job.',
-            $u['role'] === 'provider' ? '/provider/profile' : '/dashboard');
+            $u['role'] === 'provider' ? '/provider/profile' : '/');
 
         if ($u['role'] === 'provider') {
-            flash('success', 'Your account is ready! Finish your pro profile so clients can find and book you.');
-            redirect('/provider/profile');
+            flash('success', 'Your account is ready! Start with a clear photo of your face, then add your services and working hours.');
+            redirect('/provider/profile#photo');
         }
-        flash('success', 'Welcome to Fixoria, ' . $u['first_name'] . '!');
-        redirect('/dashboard');
+        flash('success', 'Welcome to Servease, ' . $u['first_name'] . '! Search for a service or post a job to get started.');
+        redirect('/');
     }
 
     /* ---------------- Email verification ---------------- */
@@ -133,8 +150,8 @@ final class AuthController
     private function sendVerification(array $u, string $token): void
     {
         $link = absolute_url('/verify-email', ['token' => $token]);
-        Mailer::send($u['email'], 'Confirm your Fixoria email',
-            "Hi {$u['first_name']},\n\nPlease confirm your email address by opening this link:\n$link\n\nThanks,\nThe Fixoria team");
+        Mailer::send($u['email'], 'Confirm your Servease email',
+            "Hi {$u['first_name']},\n\nPlease confirm your email address by opening this link:\n$link\n\nThanks,\nThe Servease team");
         Mailer::devLink('confirm your email', $link);
     }
 
@@ -144,29 +161,29 @@ final class AuthController
         $u = $token ? DB::one('SELECT * FROM users WHERE verify_token_hash = ?', [hash('sha256', $token)]) : null;
         if (!$u) {
             flash('error', 'That verification link is invalid or has already been used.');
-            redirect(user() ? '/dashboard' : '/login');
+            redirect(user() ? home_for(user()) : '/login');
         }
         DB::update('users', ['email_verified_at' => date('Y-m-d H:i:s'), 'verify_token_hash' => null], 'id = :id', ['id' => (int) $u['id']]);
         flash('success', 'Your email is confirmed. Thank you!');
-        redirect(user() ? '/dashboard' : '/login');
+        redirect(user() ? home_for(user()) : '/login');
     }
 
     public function resendVerification(): void
     {
         $u = require_auth();
-        if ($u['email_verified_at']) back('/dashboard');
+        if ($u['email_verified_at']) back(home_for(user()));
         $token = bin2hex(random_bytes(32));
         DB::update('users', ['verify_token_hash' => hash('sha256', $token)], 'id = :id', ['id' => (int) $u['id']]);
         $this->sendVerification($u, $token);
         flash('success', 'We sent a new confirmation link to ' . $u['email'] . '.');
-        back('/dashboard');
+        back(home_for(user()));
     }
 
     /* ---------------- Password reset ---------------- */
 
     public function showForgot(): void
     {
-        view('auth/forgot', ['title' => 'Reset your password'], 'layouts/auth');
+        view('auth/forgot', ['title' => 'Reset your password', 'back' => '/login'], 'layouts/auth');
     }
 
     public function forgot(): void
@@ -182,7 +199,7 @@ final class AuthController
                 'reset_expires_at' => date('Y-m-d H:i:s', time() + 3600),
             ], 'id = :id', ['id' => (int) $u['id']]);
             $link = absolute_url('/reset-password', ['token' => $token]);
-            Mailer::send($u['email'], 'Reset your Fixoria password',
+            Mailer::send($u['email'], 'Reset your Servease password',
                 "Hi {$u['first_name']},\n\nUse this link to choose a new password (valid for 1 hour):\n$link\n\nIf you didn't ask for this, you can ignore this email.");
             Mailer::devLink('reset your password', $link);
         }
@@ -199,7 +216,7 @@ final class AuthController
             flash('error', 'That reset link is invalid or has expired. Please request a new one.');
             redirect('/forgot-password');
         }
-        view('auth/reset', ['title' => 'Choose a new password', 'token' => $token], 'layouts/auth');
+        view('auth/reset', ['title' => 'Choose a new password', 'token' => $token, 'back' => '/login'], 'layouts/auth');
     }
 
     public function reset(): void

@@ -5,7 +5,7 @@ $budget = $j['budget_min'] && $j['budget_max'] ? money($j['budget_min']) . '–'
 ?>
 <a class="card card-hover job-card" href="<?= e(url('/jobs/' . $j['id'])) ?>">
   <div class="row row-top" style="--gap:14px">
-    <span class="cat-icon" style="--h:<?= hue_for($j['category_slug'] ?? $j['category_name'] ?? '') ?>;width:42px;height:42px"><?= icon($j['category_icon'] ?? 'briefcase') ?></span>
+    <span class="cat-icon cat-icon-md" style="--tint:<?= category_tint($j['category_slug'] ?? null) ?>"><?= category_art($j['category_slug'] ?? null, $j['category_icon'] ?? 'briefcase') ?></span>
     <div class="grow">
       <div class="row row-between row-top">
         <div class="job-title"><?= e($j['title']) ?></div>

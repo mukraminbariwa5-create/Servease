@@ -1,55 +1,72 @@
+<?php app_bar('Pro profile', '/services'); ?>
 <?php
 $me = user();
 $isOwner = $me && (int) $me['id'] === (int) $p['id'];
 $canHire = !$me || $me['role'] === 'client';
 $totalReviews = array_sum($dist);
-$hue = hue_for($p['category_slug'] ?? $p['id']);
 $memberSince = fmt_date($p['created_at'], 'M Y');
 ?>
-<div class="profile-cover" style="--h:<?= $hue ?>"></div>
 <div class="container">
-  <div class="profile-head">
-    <?= avatar($p, 'xl') ?>
-    <div class="grow" style="padding-bottom:6px">
-      <div class="profile-name">
-        <?= e(full_name($p)) ?>
-        <?php if ($p['verification_status'] === 'verified'): ?><span class="verified" title="Verified pro"><?= icon('badge-check', 'icon-lg') ?></span><?php endif; ?>
+  <nav class="breadcrumbs profile-crumbs hide-md" aria-label="Breadcrumb">
+    <a href="<?= e(url('/services')) ?>">Services</a><?= icon('chevron-right') ?>
+    <?php if (!empty($p['category_slug'])): ?><a href="<?= e(url('/providers', ['category' => $p['category_slug']])) ?>"><?= e($p['category_name']) ?> pros</a><?= icon('chevron-right') ?><?php endif; ?>
+    <span aria-current="page"><?= e(full_name($p)) ?></span>
+  </nav>
+  <?php
+  $prices = array_map(fn ($s) => (float) $s['price'], $services);
+  $fromPrice = $prices ? min($prices) : null;
+  $slug = $p['category_slug'] ?? '';
+  ?>
+  <article class="biz" aria-label="<?= e(full_name($p)) ?>, <?= e($p['category_name'] ?? 'General') ?>">
+    <div class="biz-band" style="--tint:<?= category_tint($slug) ?>">
+      <span class="biz-trade"><?= category_art($slug, $p['category_icon'] ?? 'wrench', 'cat-art', 28) ?></span>
+      <span class="biz-trade-name"><?= e($p['category_name'] ?? 'General') ?></span>
+    </div>
+    <div class="biz-body">
+      <div class="biz-id">
+        <?= avatar($p, 'xl') ?>
+        <div class="grow">
+          <h1 class="profile-name"><?= e(full_name($p)) ?><?php if ($p['verification_status'] === 'verified'): ?><span class="verified" title="Verified pro"><?= icon('badge-check', 'icon-lg') ?></span><?php endif; ?></h1>
+          <p class="biz-headline"><?= e($p['headline']) ?></p>
+        </div>
       </div>
-      <p class="muted"><?= e($p['headline']) ?></p>
-      <div class="stat-row">
-        <?php if ($p['rating_count'] > 0): ?>
-          <span class="rating"><?= icon('star') ?><?= number_format((float) $p['rating_avg'], 1) ?> <span class="subtle">(<?= (int) $p['rating_count'] ?> reviews)</span></span>
-        <?php endif; ?>
-        <span><?= icon('tag') ?><?= e($p['category_name'] ?? 'General') ?></span>
-        <span><?= icon('map-pin') ?><?= e($p['city']) ?></span>
-        <span><?= icon('briefcase') ?><?= (int) $p['years_experience'] ?> yrs experience</span>
-        <span><?= icon('check-circle') ?><?= (int) $p['jobs_completed'] ?> jobs done</span>
+      <dl class="biz-facts">
+        <div><dt>Rating</dt><dd><?php if ($p['rating_count'] > 0): ?><span class="rating"><?= icon('star') ?><?= number_format((float) $p['rating_avg'], 1) ?></span> <small><?= (int) $p['rating_count'] ?> reviews</small><?php else: ?>New<?php endif; ?></dd></div>
+        <div><dt>Jobs done</dt><dd><?= (int) $p['jobs_completed'] ?></dd></div>
+        <div><dt>Experience</dt><dd><?= (int) $p['years_experience'] ?> yrs</dd></div>
+        <div><dt>Based in</dt><dd><?= e(city_with_distance($p['city'])) ?></dd></div>
+      </dl>
+      <div class="biz-foot">
+        <?php if ($fromPrice !== null): ?><span class="price-tag">from <?= money($fromPrice) ?></span><?php endif; ?>
+        <span class="biz-since">Member since <?= e($memberSince) ?></span>
       </div>
     </div>
-    <div class="profile-actions">
-      <?php if ($isOwner): ?>
-        <a class="btn btn-primary" href="<?= e(url('/provider/profile')) ?>"><?= icon('pencil') ?> Edit profile</a>
+    <?php if ($p['verification_status'] === 'verified'): ?><span class="stamp stamp-green biz-stamp">ID checked</span><?php endif; ?>
+  </article>
+
+  <div class="profile-actions biz-actions">
+    <?php if ($isOwner): ?>
+      <a class="btn btn-primary" href="<?= e(url('/provider/profile')) ?>"><?= icon('pencil') ?> Edit profile</a>
+    <?php else: ?>
+      <?php if ($me && !$isOwner): ?>
+        <form method="post" action="<?= e(url('/messages/start')) ?>">
+          <?= csrf_field() ?><input type="hidden" name="user_id" value="<?= (int) $p['id'] ?>">
+          <button class="btn" type="submit"><?= icon('message') ?> Message</button>
+        </form>
       <?php else: ?>
-        <?php if ($canHire): ?>
-          <form method="post" action="<?= e(url('/providers/' . $p['id'] . '/save')) ?>" data-save-toggle data-login="<?= e(url('/login')) ?>">
-            <?= csrf_field() ?>
-            <button class="btn btn-icon save-btn <?= $isSaved ? 'is-saved' : '' ?>" style="background:var(--surface);border:1px solid var(--border-strong)" type="submit" aria-label="Save" aria-pressed="<?= $isSaved ? 'true' : 'false' ?>" data-no-lock><?= icon('heart') ?></button>
-          </form>
-        <?php endif; ?>
-        <?php if ($me && !$isOwner): ?>
-          <form method="post" action="<?= e(url('/messages/start')) ?>">
-            <?= csrf_field() ?><input type="hidden" name="user_id" value="<?= (int) $p['id'] ?>">
-            <button class="btn" type="submit"><?= icon('message') ?> Message</button>
-          </form>
-        <?php else: ?>
-          <a class="btn" href="<?= e(url('/login')) ?>"><?= icon('message') ?> Message</a>
-        <?php endif; ?>
+        <a class="btn" href="<?= e(url('/login')) ?>"><?= icon('message') ?> Message</a>
       <?php endif; ?>
-    </div>
+      <?php if ($canHire): ?>
+        <form method="post" action="<?= e(url('/providers/' . $p['id'] . '/save')) ?>" data-save-toggle data-login="<?= e(url('/login')) ?>">
+          <?= csrf_field() ?>
+          <button class="save-btn <?= $isSaved ? 'is-saved' : '' ?>" type="submit" aria-label="Save" aria-pressed="<?= $isSaved ? 'true' : 'false' ?>" data-no-lock><?= icon('heart') ?></button>
+        </form>
+      <?php endif; ?>
+    <?php endif; ?>
   </div>
 
   <div class="layout-aside page">
-    <div class="stack" style="--gap:24px">
+    <div class="stack profile-main" style="--gap:24px">
       <?php if ($p['verification_status'] !== 'verified'): ?>
         <div class="alert alert-warning"><?= icon('info') ?><div>This pro hasn't completed ID verification yet. <?= $p['verification_status'] === 'pending' ? 'Their documents are being reviewed.' : '' ?></div></div>
       <?php endif; ?>
@@ -64,50 +81,50 @@ $memberSince = fmt_date($p['created_at'], 'M Y');
         <?php endif; ?>
         <dl class="kv mt-6">
           <dt>Service area</dt><dd><?= e($p['service_area'] ?: $p['city']) ?></dd>
+          <dt>Working hours</dt><dd><?= e(Availability::summary($p)) ?></dd>
           <dt>Member since</dt><dd><?= e($memberSince) ?></dd>
           <dt>Availability</dt><dd><?= $p['is_available'] ? '<span class="badge badge-green">Taking new jobs</span>' : '<span class="badge">Fully booked</span>' ?></dd>
         </dl>
       </section>
 
-      <section class="card card-body">
-        <div class="row row-between mb-2"><h3>Services &amp; rates</h3><span class="small subtle">Final price is agreed before booking</span></div>
+      <section class="card card-body" id="services">
+        <div class="head-row mb-2"><h3>Services &amp; rates</h3><span class="small subtle">Final price is agreed before booking</span></div>
         <?php if (!$services): ?><p class="muted mt-2">No fixed-price services listed. Message this pro for a quote.</p><?php endif; ?>
-        <?php foreach ($services as $s): ?>
-          <div class="service-row">
+        <?php $picked = (int) ($_GET['service'] ?? 0); foreach ($services as $s): $isPicked = $picked === (int) $s['id']; ?>
+          <div class="service-row<?= $isPicked ? ' is-picked' : '' ?>"<?= $isPicked ? ' aria-current="true"' : '' ?>>
             <div class="grow">
               <div class="semibold"><?= e($s['title']) ?></div>
               <?php if ($s['description']): ?><div class="small muted"><?= e($s['description']) ?></div><?php endif; ?>
             </div>
             <div class="service-price"><?= $s['price_unit'] === 'starting' ? '<span class="small subtle">from </span>' : '' ?><?= money($s['price']) ?><span class="small subtle"><?= e(price_unit_label($s['price_unit']) === '+' ? '' : price_unit_label($s['price_unit'])) ?></span></div>
             <?php if ($canHire && !$isOwner): ?>
-              <a class="btn btn-sm btn-soft" href="<?= e(url('/providers/' . $p['id'] . '/book', ['service' => $s['id']])) ?>">Book</a>
+              <a class="btn btn-sm <?= $isPicked ? 'btn-primary' : 'btn-soft' ?>" href="<?= e(url('/providers/' . $p['id'] . '/book', ['service' => $s['id']])) ?>">Book<span class="sr-only"> <?= e($s['title']) ?></span></a>
             <?php endif; ?>
           </div>
         <?php endforeach; ?>
       </section>
 
-      <section class="card card-body">
-        <h3 class="mb-4">Portfolio</h3>
+      <?php if ($portfolio || $isOwner): ?>
+      <section class="card card-body" id="portfolio">
+        <div class="head-row mb-4"><h3>Work photos</h3><?php if ($portfolio): ?><span class="small subtle"><?= count($portfolio) ?> photo<?= count($portfolio) === 1 ? '' : 's' ?></span><?php endif; ?></div>
         <?php if (!$portfolio): ?>
-          <div class="empty" style="padding:28px 12px">
-            <div class="empty-icon"><?= icon('image') ?></div>
-            <p>No photos yet<?= $isOwner ? ' — add some from your profile editor to win more clients.' : '.' ?></p>
-          </div>
+          <div class="inline-empty"><?= icon('image') ?><p>Customers can't see this section until you add photos of your work. <a href="<?= e(url('/provider/profile#portfolio')) ?>">Add photos</a></p></div>
         <?php else: ?>
           <div class="gallery">
             <?php foreach ($portfolio as $item): ?>
               <a href="<?= e(upload_url($item['image'])) ?>" target="_blank" rel="noopener" title="<?= e($item['caption']) ?>">
-                <img src="<?= e(upload_url($item['image'])) ?>" alt="<?= e($item['caption'] ?: 'Portfolio photo') ?>" loading="lazy">
+                <img src="<?= e(upload_url($item['image'])) ?>" alt="<?= e($item['caption'] ?: 'Work photo') ?>" loading="lazy">
               </a>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
       </section>
+      <?php endif; ?>
 
       <section class="card card-body" id="reviews">
-        <h3 class="mb-4">Reviews</h3>
+        <div class="head-row mb-4"><h3>Reviews</h3><?php if ($totalReviews): ?><span class="small subtle">From completed bookings only</span><?php endif; ?></div>
         <?php if (!$totalReviews): ?>
-          <p class="muted">No reviews yet. Reviews can only be left by clients after a completed booking.</p>
+          <?= empty_inline('star', 'No reviews yet', 'Only customers with a completed booking can leave a review, so every rating here is real.') ?>
         <?php else: ?>
           <div class="rating-summary">
             <div>
@@ -121,9 +138,9 @@ $memberSince = fmt_date($p['created_at'], 'M Y');
               <?php endfor; ?>
             </div>
           </div>
-          <div class="mt-4">
-            <?php foreach ($reviews as $r): ?>
-              <article class="review">
+          <div class="mt-4" data-more-list>
+            <?php foreach ($reviews as $ri => $r): ?>
+              <article class="review"<?= $ri >= 3 ? ' hidden data-more-item' : '' ?>>
                 <div class="row" style="--gap:12px">
                   <?= avatar(['id' => $r['client_uid'], 'first_name' => $r['first_name'], 'last_name' => $r['last_name'], 'avatar' => $r['avatar']], 'sm') ?>
                   <div class="grow">
@@ -145,14 +162,23 @@ $memberSince = fmt_date($p['created_at'], 'M Y');
               </article>
             <?php endforeach; ?>
           </div>
+          <?php if (count($reviews) > 3): ?>
+            <button class="btn btn-block mt-4" type="button" data-more-toggle aria-expanded="false">Show all <?= count($reviews) ?> reviews <?= icon('chevron-down') ?></button>
+          <?php endif; ?>
         <?php endif; ?>
       </section>
     </div>
 
     <aside class="sticky stack" style="--gap:20px">
-      <div class="card card-body book-card">
-        <div class="small subtle">Starting rate</div>
-        <div class="price-lg"><?= money($p['hourly_rate']) ?><span class="small subtle" style="font-weight:500">/hour</span></div>
+      <div class="card card-body book-card<?= $canHire && !$isOwner ? ' book-card-hire' : '' ?>">
+        <?php if ($fromPrice !== null): ?>
+          <div class="small subtle">Services from</div>
+          <div class="price-lg"><?= money($fromPrice) ?></div>
+          <div class="small muted mt-1">Custom jobs: <?= money($p['hourly_rate']) ?>/hour</div>
+        <?php else: ?>
+          <div class="small subtle">Starting rate</div>
+          <div class="price-lg"><?= money($p['hourly_rate']) ?><span class="small subtle" style="font-weight:500">/hour</span></div>
+        <?php endif; ?>
         <?php if ($isOwner): ?>
           <p class="small muted mt-3">This is how clients see your profile.</p>
           <a class="btn btn-block mt-4" href="<?= e(url('/provider/profile')) ?>">Edit profile</a>
@@ -164,12 +190,20 @@ $memberSince = fmt_date($p['created_at'], 'M Y');
         <?php endif; ?>
         <hr>
         <ul class="trust-list">
-          <li><?= icon('shield-check') ?> <?= $p['verification_status'] === 'verified' ? 'Identity verified by Fixoria' : 'Verification in progress' ?></li>
+          <li><?= icon('shield-check') ?> <?= $p['verification_status'] === 'verified' ? 'Identity verified by Servease' : 'Verification in progress' ?></li>
           <li><?= icon('star') ?> Reviews only from completed bookings</li>
-          <li><?= icon('wallet') ?> Pay by cash, GCash, Maya or bank</li>
+          <li><?= icon('wallet') ?> Pay your pro directly: GCash, Maya, bank or cash</li>
           <li><?= icon('message') ?> Chat before you book</li>
         </ul>
       </div>
+      <?php if ($ll = city_coords($p['city'])): [$lat, $lng] = $ll; $dist = distance_label($p['city']); ?>
+        <div class="card map-card">
+          <div class="card-header"><h3><?= icon('map-pin') ?> Service area</h3><?php if ($dist): ?><span class="small subtle"><?= e($dist) ?></span><?php endif; ?></div>
+          <iframe class="map-frame" title="Map of <?= e($p['city']) ?>" loading="lazy" referrerpolicy="no-referrer"
+                  src="https://www.openstreetmap.org/export/embed.html?bbox=<?= rawurlencode(sprintf('%.4f,%.4f,%.4f,%.4f', $lng - .07, $lat - .045, $lng + .07, $lat + .045)) ?>&amp;layer=mapnik&amp;marker=<?= rawurlencode(sprintf('%.4f,%.4f', $lat, $lng)) ?>"></iframe>
+          <div class="card-body small muted"><?= e($p['first_name']) ?> works in <?= e($p['service_area'] ?: $p['city'] . ' and nearby') ?>. The exact address is only shared after you book.</div>
+        </div>
+      <?php endif; ?>
       <?php if ($similar): ?>
         <div class="card">
           <div class="card-header"><h3>Similar pros</h3></div>
@@ -179,7 +213,7 @@ $memberSince = fmt_date($p['created_at'], 'M Y');
                 <?= avatar($s, 'md') ?>
                 <div class="grow">
                   <div class="list-title truncate"><?= e(full_name($s)) ?></div>
-                  <div class="list-sub"><?= $s['rating_count'] ? '★ ' . number_format((float) $s['rating_avg'], 1) . ' · ' : '' ?><?= e($s['city']) ?></div>
+                  <div class="list-sub"><?= $s['rating_count'] ? '★ ' . number_format((float) $s['rating_avg'], 1) . ' · ' : '' ?><?= e(city_with_distance($s['city'])) ?></div>
                 </div>
                 <span class="semibold small"><?= money($s['hourly_rate']) ?>/hr</span>
               </a>
@@ -190,3 +224,19 @@ $memberSince = fmt_date($p['created_at'], 'M Y');
     </aside>
   </div>
 </div>
+<?php if ($canHire && !$isOwner): ?>
+  <div class="book-bar show-md">
+    <div class="grow"><?php if ($fromPrice !== null): ?><small>Services from</small><strong><?= money($fromPrice) ?></strong><?php else: ?><small>Starting rate</small><strong><?= money($p['hourly_rate']) ?><span>/hr</span></strong><?php endif; ?></div>
+    <a class="btn btn-primary btn-lg" href="<?= e(url('/providers/' . $p['id'] . '/book')) ?>"><?= icon('calendar') ?> Request a booking</a>
+  </div>
+<?php endif; ?>
+<script>
+  document.querySelectorAll('[data-more-toggle]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var items = b.parentNode.querySelectorAll('[data-more-item]');
+      items.forEach(function (i) { i.hidden = false; });
+      if (items[0]) { items[0].setAttribute('tabindex', '-1'); items[0].focus({ preventScroll: true }); }
+      b.remove();
+    });
+  });
+</script>

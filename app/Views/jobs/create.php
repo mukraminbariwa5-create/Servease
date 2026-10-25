@@ -5,9 +5,10 @@ $cur = config('app.currency');
 $d = fn(string $mod) => date('Y-m-d', strtotime($mod));
 $weekend = date('N') >= 6 ? date('Y-m-d', strtotime('tomorrow')) : $d('next saturday');
 ?>
-<section class="page-header page-header-soft">
+<?php app_bar('Post a job', '/my/jobs'); ?>
+<section class="page-header page-header-soft hide-md">
   <div class="container">
-    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="<?= e(url('/dashboard')) ?>">Dashboard</a><?= icon('chevron-right') ?><span>Post a job</span></nav>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="<?= e(url('/my/jobs')) ?>">My jobs</a><?= icon('chevron-right') ?><span>Post a job</span></nav>
     <h1>Post a job</h1>
     <p class="lead">Tell pros what you need. Most jobs get their first quote within a few hours, and posting is free.</p>
   </div>
@@ -26,7 +27,7 @@ $weekend = date('N') >= 6 ? date('Y-m-d', strtotime('tomorrow')) : $d('next satu
             <?php foreach ($cats as $c): ?>
               <label class="tile">
                 <input type="radio" name="category_id" value="<?= (int) $c['id'] ?>" data-label="<?= e($c['name']) ?>" data-icon="<?= e($c['icon']) ?>"<?= checked((string) $preselect === (string) $c['id']) ?> required>
-                <span class="tile-body"><span class="tile-icon"><?= icon($c['icon']) ?></span><span class="tile-name"><?= e($c['name']) ?></span></span>
+                <span class="tile-body"><span class="tile-icon" style="--tint:<?= category_tint($c['slug']) ?>"><?= category_art($c['slug'], $c['icon']) ?></span><span class="tile-name"><?= e($c['name']) ?></span></span>
               </label>
             <?php endforeach; ?>
           </div>
@@ -45,7 +46,7 @@ $weekend = date('N') >= 6 ? date('Y-m-d', strtotime('tomorrow')) : $d('next satu
           <div class="label-row"><label class="label" for="description">Details</label><span class="counter"></span></div>
           <textarea class="textarea" id="description" name="description" rows="6" maxlength="3000" data-count data-min="20" placeholder="What's the problem, and where? Include sizes, brand or model, and anything the pro should bring…" required><?= e(old('description')) ?></textarea>
           <?= field_error('description') ?>
-          <div class="tip-row"><?= icon('sparkles', 'icon-sm') ?><span><strong>Tip:</strong> mention the size of the area, when it started, and parking or building access.</span></div>
+          <div class="tip-row"><?= icon('info', 'icon-sm') ?><span><strong>Tip:</strong> mention the size of the area, when it started, and parking or building access.</span></div>
         </div>
       </section>
 
@@ -110,9 +111,9 @@ $weekend = date('N') >= 6 ? date('Y-m-d', strtotime('tomorrow')) : $d('next satu
       </section>
 
       <div class="form-actions">
-        <span class="note"><?= icon('shield-check') ?> Free to post · You choose who to hire</span>
+        <span class="note"><?= icon('shield-check') ?> Posting is free, and you choose who to hire.</span>
         <div class="row" style="--gap:8px">
-          <a class="btn btn-ghost" href="<?= e(url('/dashboard')) ?>">Cancel</a>
+          <a class="btn btn-ghost" href="<?= e(url('/my/jobs')) ?>">Cancel</a>
           <button class="btn btn-primary btn-lg" type="submit"><?= icon('send') ?> Post job</button>
         </div>
       </div>
@@ -120,10 +121,10 @@ $weekend = date('N') >= 6 ? date('Y-m-d', strtotime('tomorrow')) : $d('next satu
 
     <aside class="sticky stack" style="--gap:16px">
       <div>
-        <div class="preview-label"><span class="live-dot"></span> Live preview · what pros see</div>
+        <div class="preview-label"><span class="live-dot"></span> What pros will see</div>
         <div class="card job-card preview-card">
           <div class="row row-top" style="--gap:14px">
-            <span class="cat-icon" style="width:42px;height:42px" data-preview="category_id_label" data-preview-icon data-empty=""><?= icon('briefcase') ?></span>
+            <span class="cat-icon cat-icon-md" data-preview="category_id_label" data-preview-icon data-empty=""><?= icon('briefcase') ?></span>
             <div class="grow">
               <div class="job-title" data-preview="title" data-empty="Your job title"></div>
               <p class="job-desc" data-preview="description" data-empty="Your description will appear here."></p>
@@ -149,7 +150,7 @@ $weekend = date('N') >= 6 ? date('Y-m-d', strtotime('tomorrow')) : $d('next satu
     </aside>
   </div>
   <div class="hidden" aria-hidden="true">
-    <?php foreach ($cats as $c): ?><span data-icon-src="<?= e($c['icon']) ?>"><?= icon($c['icon']) ?></span><?php endforeach; ?>
+    <?php foreach ($cats as $c): ?><span data-icon-src="<?= e($c['icon']) ?>"><?= category_art($c['slug'], $c['icon']) ?></span><?php endforeach; ?>
   </div>
 </div>
 <script>

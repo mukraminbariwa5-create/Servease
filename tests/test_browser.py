@@ -3,7 +3,7 @@ Run against a freshly installed demo database:  php database/install.php && pyth
 """
 import os, pathlib
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-B = os.environ.get('FIXORIA_URL', 'http://127.0.0.1:8000').rstrip('/')
+B = os.environ.get('SERVEASE_URL', 'http://127.0.0.1:8000').rstrip('/')
 MAIL_LOG = ROOT / 'storage' / 'logs' / 'mail.log'
 DB_HELPER = str(ROOT / 'tests' / 'db.php')
 import asyncio, json, subprocess, time
@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 def q(sql): return json.loads(subprocess.check_output(['php',DB_HELPER,sql]))
 res=[]
 def check(c,m): res.append(('✓' if c else '✗')+' '+m)
-async def login(pg,email,pw='fixoria123'):
+async def login(pg,email,pw='servease123'):
     await pg.goto(B+'/login'); await pg.fill('#email',email); await pg.fill('#password',pw); await pg.click('#login-form button[type=submit]'); await pg.wait_for_load_state()
 async def main():
     async with async_playwright() as p:
@@ -20,7 +20,7 @@ async def main():
         # 1 register a pro through the UI
         ctx=await b.new_context(viewport={'width':1280,'height':900}); pg=await ctx.new_page(); pg.on('pageerror',lambda e: errs.append(str(e)))
         await pg.goto(B+'/register')
-        await pg.click('.choice:has-text("Work as a pro")')
+        await pg.click('.role-option:has-text("Service provider")'); await pg.wait_for_load_state()
         await pg.fill('#first_name','Rico'); await pg.fill('#last_name','Tan'); await pg.fill('#email','rico@example.com')
         await pg.select_option('#city','Pasig'); await pg.click('.tile:has-text("Electrical")')
         await pg.fill('#password','sparky2026'); await pg.fill('#password_confirmation','sparky2026')
@@ -32,7 +32,7 @@ async def main():
         await ctx.close()
         # 2 client: post job via UI, book via UI, review via UI
         ctx=await b.new_context(viewport={'width':1280,'height':900}); pg=await ctx.new_page(); pg.on('pageerror',lambda e: errs.append(str(e)))
-        await login(pg,'client@fixoria.test')
+        await login(pg,'client@servease.test')
         await pg.goto(B+'/jobs/new'); await pg.click('.tile:has-text("Painting")')
         await pg.fill('#title','Repaint two bedroom walls'); await pg.fill('#description','Two walls about 3x2.7m each, light blue to white, minor cracks to patch.')
         await pg.click('button.pick:has-text("Next week")'); await pg.click('.choice:has-text("Urgent")'); await pg.click('button[data-budget="3000,8000"]')
@@ -42,7 +42,7 @@ async def main():
         check(j and j[0]['urgency']=='urgent' and float(j[0]['budget_min'])==3000 and j[0]['preferred_date'] is not None,'job saved with picks (urgent, ₱3k–8k, date)')
         await pg.goto(B+'/providers/3/book'); await pg.click('.choice:has-text("Leak repair")')
         check((await pg.input_value('#title'))=='Leak repair','service card fills title')
-        await pg.fill('#details','Kitchen faucet drips all night long.'); await pg.click('.date-cell >> nth=4'); await pg.click('.pick:has-text("10:00 AM")'); await pg.fill('#address','12 Mabini St, Brgy. Pinyahan')
+        await pg.fill('#details','Kitchen faucet drips all night long.'); await pg.click('.date-cell:not([disabled]) >> nth=4'); await pg.click('.pick:has(input:not(:disabled)):has-text("10:00 AM")'); await pg.fill('#address','12 Mabini St, Brgy. Pinyahan')
         await pg.click('button:has-text("Send request")'); await pg.wait_for_load_state()
         bk=q("SELECT scheduled_time, service_id FROM bookings WHERE details='Kitchen faucet drips all night long.'")
         check(bk and bk[0]['scheduled_time']=='10:00' and bk[0]['service_id'],'booking saved with time chip + service')
@@ -56,11 +56,11 @@ async def main():
         await pg.fill('#first_name','Mariah'); vis2=await pg.eval_on_selector('.savebar','e=>e.classList.contains("is-visible")')
         check(not vis and vis2,'save bar hidden until something changes')
         await pg.click('.savebar .btn-primary'); await pg.wait_for_load_state()
-        check(q("SELECT first_name FROM users WHERE email='client@fixoria.test'")[0]['first_name']=='Mariah','save bar button saves')
+        check(q("SELECT first_name FROM users WHERE email='client@servease.test'")[0]['first_name']=='Mariah','save bar button saves')
         await ctx.close()
         # 3 pro: quote via UI
         ctx=await b.new_context(viewport={'width':1280,'height':900}); pg=await ctx.new_page(); pg.on('pageerror',lambda e: errs.append(str(e)))
-        await login(pg,'mark.aquino@fixoria.test')
+        await login(pg,'mark.aquino@servease.test')
         jid=q("SELECT id FROM jobs WHERE title='Repaint two bedroom walls'")[0]['id']
         await pg.goto(f'{B}/jobs/{jid}'); await pg.click('button.pick:has-text("₱8,000")'); await pg.click('button.pick:has-text("2 days")'); await pg.click('button:has-text("Use a template")')
         await pg.click('button:has-text("Send quote")'); await pg.wait_for_load_state()

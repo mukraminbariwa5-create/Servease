@@ -1,53 +1,27 @@
 <?php
-/** Signed-in area: top navbar + side navigation. */
-$u = user();
+/**
+ * Signed-in pages. Navigation lives in one place per screen size: the top bar and
+ * account menu on computers, the tab bar and Profile tab on phones.
+ * Reading and form pages use a comfortable reading width; dashboards and inboxes use the full width.
+ */
 $active = $active ?? '';
-$openBookings = (int) DB::value(
-    is_role('provider')
-        ? "SELECT COUNT(*) FROM bookings WHERE provider_id = ? AND status = 'requested'"
-        : "SELECT COUNT(*) FROM bookings WHERE client_id = ? AND status IN ('accepted','in_progress')",
-    [(int) $u['id']]
-);
-$link = function (string $key, string $href, string $icon, string $label, int $count = 0) use ($active) {
-    return '<a href="' . e(url($href)) . '" class="' . ($active === $key ? 'is-active' : '') . '">'
-        . icon($icon) . '<span>' . e($label) . '</span>'
-        . ($count ? '<span class="pill-count">' . $count . '</span>' : '') . '</a>';
-};
+$wide = !empty($wide) || in_array($active, ['dashboard', 'messages', 'saved', 'quotes'], true) || ($active === 'bookings' && ($title ?? '') === 'Bookings');
 ?>
 <!doctype html>
-<html lang="en" data-brand="<?= e(brand_theme()) ?>">
+<html lang="en">
 <head>
 <?= partial('head', ['title' => $title ?? null]) ?>
 </head>
-<body>
-<a class="sr-only" href="#main">Skip to content</a>
+<body class="in-shell<?= app_bar() ? ' has-appbar' : '' ?><?= !empty($bodyClass) ? ' ' . e($bodyClass) : '' ?>">
+<a class="skip-link" href="#main">Skip to content</a>
 <?= partial('navbar') ?>
 <?= partial('flashes') ?>
-<div class="container shell">
-  <nav class="sidenav" aria-label="Account">
-    <span class="sidenav-label">Overview</span>
-    <?= $link('dashboard', '/dashboard', 'dashboard', 'Dashboard') ?>
-    <?= $link('bookings', '/bookings', 'calendar', 'Bookings', $openBookings) ?>
-    <?= $link('messages', '/messages', 'message', 'Messages') ?>
-    <?= $link('notifications', '/notifications', 'bell', 'Notifications') ?>
-    <?php if (is_role('client')): ?>
-      <span class="sidenav-label">Hiring</span>
-      <?= $link('jobs', '/my/jobs', 'briefcase', 'My jobs') ?>
-      <?= $link('saved', '/saved', 'heart', 'Saved pros') ?>
-    <?php elseif (is_role('provider')): ?>
-      <span class="sidenav-label">Your business</span>
-      <?= $link('quotes', '/my/quotes', 'file-text', 'My quotes') ?>
-      <?= $link('profile', '/provider/profile', 'user', 'Pro profile') ?>
-      <?= $link('findwork', '/jobs', 'search', 'Find work') ?>
-    <?php elseif (is_role('admin')): ?>
-      <span class="sidenav-label">Admin</span>
-      <?= $link('admin', '/admin', 'shield', 'Admin panel') ?>
-    <?php endif; ?>
-    <span class="sidenav-label">Account</span>
-    <?= $link('settings', '/settings', 'settings', 'Settings') ?>
-  </nav>
-  <main id="main" class="grow"><?= $content ?></main>
+<?php if (page_hero()): ?><?= partial('listing-hero', page_hero()) ?><?php endif; ?>
+<div class="container shell<?= $wide ? ' shell-wide' : '' ?><?= page_hero() ? ' has-hero' : '' ?>">
+  <main id="main" class="shell-main"><?= $content ?></main>
 </div>
+<?= partial('tabbar') ?>
 <?= partial('confirm') ?>
+<?= partial('install') ?>
 </body>
 </html>

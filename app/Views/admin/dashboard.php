@@ -1,11 +1,14 @@
 <?php
 $max = max(1, max(array_column($chart, 'value')));
-$statusColors = ['completed' => 'var(--green)', 'accepted' => 'var(--blue)', 'in_progress' => 'var(--violet)', 'requested' => 'var(--amber)', 'cancelled' => 'var(--text-3)', 'declined' => 'var(--border-strong)'];
+$statusColors = ['completed' => 'var(--sv-green)', 'accepted' => 'var(--sv-blue)', 'in_progress' => 'var(--sv-violet)', 'requested' => 'var(--sv-amber)', 'cancelled' => 'var(--sv-text-3)', 'declined' => 'var(--sv-border-strong)'];
 $totalB = max(1, array_sum($byStatus));
 ?>
 <div class="page-title">
-  <div><h1>Overview</h1><p class="muted">How Fixoria is doing: <?= e(date('F Y')) ?>.</p></div>
-  <?php if ($pendingCount): ?><a class="btn btn-primary" href="<?= e(url('/admin/verifications')) ?>"><?= icon('shield-check') ?> <?= $pendingCount ?> pro<?= $pendingCount === 1 ? '' : 's' ?> to verify</a><?php endif; ?>
+  <div><h1>Overview</h1><p class="muted">How Servease is doing: <?= e(date('F Y')) ?>.</p></div>
+  <div class="row row-wrap" style="--gap:8px">
+    <?php if ($issueCount): ?><a class="btn" href="<?= e(url('/admin/issues')) ?>"><?= icon('flag') ?> <?= $issueCount ?> problem<?= $issueCount === 1 ? '' : 's' ?> reported</a><?php endif; ?>
+    <?php if ($pendingCount): ?><a class="btn btn-primary" href="<?= e(url('/admin/verifications')) ?>"><?= icon('shield-check') ?> <?= $pendingCount ?> pro<?= $pendingCount === 1 ? '' : 's' ?> to verify</a><?php endif; ?>
+  </div>
 </div>
 
 <div class="stats">
@@ -45,7 +48,7 @@ $totalB = max(1, array_sum($byStatus));
     <div class="card-header"><h3>Top categories</h3></div>
     <div class="list-divided">
       <?php foreach ($topCategories as $c): ?>
-        <div class="list-item"><span class="cat-icon" style="width:36px;height:36px"><?= icon($c['icon']) ?></span><div class="grow list-title"><?= e($c['name']) ?></div><span class="semibold"><?= (int) $c['n'] ?></span></div>
+        <div class="list-item"><span class="cat-icon cat-icon-sm" style="--tint:<?= category_tint($c['slug']) ?>"><?= category_art($c['slug'], $c['icon']) ?></span><div class="grow list-title"><?= e($c['name']) ?></div><span class="semibold"><?= (int) $c['n'] ?></span></div>
       <?php endforeach; ?>
     </div>
   </section>

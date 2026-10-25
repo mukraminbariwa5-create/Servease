@@ -70,7 +70,7 @@ final class MessageController
         );
         view('messages/index', [
             'title' => 'Chat with ' . $c['other']['first_name'], 'list' => $list, 'c' => $c,
-            'messages' => $messages, 'shared' => $shared, 'active' => 'messages',
+            'messages' => $messages, 'shared' => $shared, 'active' => 'messages', 'bodyClass' => 'is-chat-open',
         ], 'layouts/shell');
     }
 

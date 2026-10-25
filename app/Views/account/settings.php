@@ -1,6 +1,12 @@
 <?php $err = errors(); $f = fn($k) => old($k, $u[$k] ?? ''); $inv = fn($k) => isset($err[$k]) ? ' is-invalid' : ''; ?>
+<?php app_bar('Settings', '/account');
+page_hero([
+    'crumbs' => [['Home', home_for($u)], ['Settings', null]], 'narrow' => true,
+    'title' => 'Settings', 'lead' => 'Your photo, personal details and password.',
+    'stats' => array_values(array_filter([['mail', e($u['email'])], $u['city'] ? ['map-pin', e($u['city'])] : null, [$u['email_verified_at'] ? 'shield-check' : 'alert', $u['email_verified_at'] ? 'Email verified' : 'Email not verified yet']])),
+]); ?>
 <div class="page-title">
-  <div><h1>Settings</h1><p class="muted">Manage your photo, personal details and password.</p></div>
+  <div class="app-dup"><h1>Settings</h1><p class="muted">Manage your photo, personal details and password.</p></div>
 </div>
 
 <div class="settings">
@@ -14,7 +20,7 @@
         <?= avatar($u, 'xl') ?>
         <div class="grow">
           <div class="semibold"><?= e(full_name($u)) ?></div>
-          <div class="small muted mb-3">JPG, PNG or WebP · up to 3 MB</div>
+          <div class="small muted mb-3">JPG, PNG or WebP, up to 3 MB</div>
           <div class="row row-wrap" style="--gap:8px">
             <form method="post" action="<?= e(url('/settings/avatar')) ?>" enctype="multipart/form-data">
               <?= csrf_field() ?>

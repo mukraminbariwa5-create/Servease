@@ -36,7 +36,10 @@ final class JobController
         $total = (int) DB::value("SELECT COUNT(*) FROM jobs j LEFT JOIN categories c ON c.id = j.category_id WHERE $whereSql", $params);
         $jobs = DB::all(self::SELECT . " WHERE $whereSql ORDER BY $order LIMIT ? OFFSET ?", array_merge($params, [$perPage, $offset]));
 
-        view('jobs/index', ['title' => 'Job board', 'jobs' => $jobs, 'total' => $total, 'page' => $page, 'perPage' => $perPage, 'f' => $f]);
+        $summary = DB::one("SELECT SUM(j.created_at >= ?) AS this_week, MAX(COALESCE(j.budget_max, j.budget_min)) AS top_budget, SUM(j.urgency = 'urgent') AS urgent
+                            FROM jobs j LEFT JOIN categories c ON c.id = j.category_id WHERE $whereSql",
+                           array_merge([date('Y-m-d H:i:s', strtotime('-7 days'))], $params)) ?: [];
+        view('jobs/index', ['title' => 'Job board', 'jobs' => $jobs, 'total' => $total, 'page' => $page, 'perPage' => $perPage, 'f' => $f, 'summary' => $summary]);
     }
 
     public function show(string $id): void

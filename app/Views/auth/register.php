@@ -1,31 +1,16 @@
 <div class="auth-head">
-  <h1>Create your account</h1>
-  <p class="lead">Free forever. Takes less than a minute.</p>
+  <a class="role-badge" href="<?= e(url('/register')) ?>" title="Choose a different account type">
+    <?= icon($role === 'provider' ? 'briefcase' : 'house') ?> <?= $role === 'provider' ? 'Service provider' : 'Customer' ?> account <span>Change</span>
+  </a>
+  <h1><?= $role === 'provider' ? 'Start working with Servease' : 'Create your account' ?></h1>
+  <p class="lead"><?= $role === 'provider' ? 'Set up your account, then add your photo, services and working hours.' : 'Free to join. It takes less than a minute.' ?></p>
 </div>
 
 <form class="mt-8" method="post" action="<?= e(url('/register')) ?>" novalidate>
   <?= csrf_field() ?>
-  <fieldset class="fieldset">
-    <legend class="label">I want to…</legend>
-    <div class="choices grid-2" style="display:grid">
-      <label class="choice">
-        <input type="radio" name="role" value="client"<?= checked($role === 'client') ?> data-role-choice>
-        <span class="choice-body">
-          <span class="choice-icon"><?= icon('home') ?></span>
-          <span><span class="choice-title" style="display:block">Hire a pro</span><span class="choice-desc">Get help with jobs at home</span></span>
-        </span>
-      </label>
-      <label class="choice">
-        <input type="radio" name="role" value="provider"<?= checked($role === 'provider') ?> data-role-choice>
-        <span class="choice-body">
-          <span class="choice-icon"><?= icon('wrench') ?></span>
-          <span><span class="choice-title" style="display:block">Work as a pro</span><span class="choice-desc">Find clients and grow</span></span>
-        </span>
-      </label>
-    </div>
-  </fieldset>
+  <input type="hidden" name="role" value="<?= e($role) ?>">
 
-  <div class="form-row mt-6">
+  <div class="form-row">
     <div class="field<?= invalid('first_name') ?>">
       <label class="label" for="first_name">First name</label>
       <div class="input-icon"><?= icon('user') ?><input class="input" id="first_name" name="first_name" value="<?= e(old('first_name')) ?>" placeholder="Juan" autocomplete="given-name" required></div>
@@ -33,7 +18,7 @@
     </div>
     <div class="field<?= invalid('last_name') ?>">
       <label class="label" for="last_name">Last name</label>
-      <input class="input" id="last_name" name="last_name" value="<?= e(old('last_name')) ?>" placeholder="Dela Cruz" autocomplete="family-name" required>
+      <div class="input-icon"><?= icon("user") ?><input class="input" id="last_name" name="last_name" value="<?= e(old('last_name')) ?>" placeholder="Dela Cruz" autocomplete="family-name" required></div>
       <?= field_error('last_name') ?>
     </div>
   </div>
@@ -66,7 +51,7 @@
       <?php foreach (categories() as $c): ?>
         <label class="tile">
           <input type="radio" name="category_id" value="<?= (int) $c['id'] ?>"<?= checked((string) old('category_id') === (string) $c['id']) ?>>
-          <span class="tile-body"><span class="tile-icon"><?= icon($c['icon']) ?></span><span class="tile-name"><?= e($c['name']) ?></span></span>
+          <span class="tile-body"><span class="tile-icon" style="--tint:<?= category_tint($c['slug']) ?>"><?= category_art($c['slug'], $c['icon']) ?></span><span class="tile-name"><?= e($c['name']) ?></span></span>
         </label>
       <?php endforeach; ?>
     </div>
@@ -102,11 +87,4 @@
   </div>
   <button class="btn btn-primary btn-lg btn-block mt-6" type="submit">Create account <?= icon('arrow-right') ?></button>
 </form>
-<p class="auth-switch">Already have an account? <a href="<?= e(url('/login')) ?>">Sign in</a></p>
-<script>
-  document.querySelectorAll('[data-role-choice]').forEach(function (r) {
-    r.addEventListener('change', function () {
-      document.querySelectorAll('[data-provider-only]').forEach(function (el) { el.hidden = r.value !== 'provider'; });
-    });
-  });
-</script>
+<p class="auth-switch">Already have an account? <a href="<?= e(url('/login')) ?>">Log in</a></p>

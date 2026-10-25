@@ -36,8 +36,8 @@ final class InstallController
         session_regenerate_id(true);
         unset($_SESSION['user_id']);
         flash('success', $seed
-            ? "Fixoria is installed with demo data. Sign in with any demo account (password: {$result['password']})."
-            : 'Fixoria is installed. Create your account to get started.');
+            ? "Servease is installed with demo data. Sign in with any demo account (password: {$result['password']})."
+            : 'Servease is installed. Create your account to get started.');
         redirect($seed ? '/login' : '/register');
     }
 
@@ -53,6 +53,8 @@ final class InstallController
         foreach (array_filter(array_map('trim', explode(';', $sql))) as $statement) {
             DB::pdo()->exec($statement);
         }
+        if (!is_dir(ROOT . '/storage/cache')) mkdir(ROOT . '/storage/cache', 0755, true);
+        Migrator::markCurrent();
 
         foreach (['uploads/avatars', 'uploads/portfolio', 'storage/private/verification', 'storage/logs'] as $dir) {
             if (!is_dir(ROOT . "/$dir")) mkdir(ROOT . "/$dir", 0755, true);

@@ -1,6 +1,6 @@
 <?php
 /**
- * Fixoria — front controller.
+ * Servease — front controller.
  * Every request that is not a real file is routed through here (see .htaccess).
  */
 declare(strict_types=1);

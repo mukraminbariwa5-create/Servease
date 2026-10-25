@@ -9,11 +9,37 @@ declare(strict_types=1);
  */
 final class PaymentController
 {
-    private const METHODS = ['cash', 'gcash', 'maya', 'bank_transfer'];
+    private const METHODS = ['gcash', 'maya', 'bank_transfer', 'cash'];
+
+    /** Shown on the payment screen: method => [label, note] */
+    public const CHOICES = [
+        'gcash'         => ['GCash', 'E-wallet transfer'],
+        'maya'          => ['Maya', 'E-wallet transfer'],
+        'bank_transfer' => ['Bank transfer', 'InstaPay or PESONet'],
+        'cash'          => ['Cash', 'Paid in person'],
+    ];
 
     private function payable(array $b): bool
     {
         return in_array($b['status'], ['accepted', 'in_progress', 'completed'], true) && $b['payment_status'] === 'unpaid';
+    }
+
+    /** Payment screen: pick how the job is (or was) paid, then Continue. */
+    public function choose(string $id): void
+    {
+        $u = require_auth();
+        $b = BookingController::find((int) $id, $u);
+        $isClient = (int) $u['id'] === (int) $b['client_id'];
+        $isPro = (int) $u['id'] === (int) $b['provider_id'];
+        if (!($isClient || $isPro) || !$this->payable($b)) {
+            flash('info', $b['payment_status'] === 'unpaid' ? 'This booking can be paid once it\'s confirmed.' : 'This booking already has a payment recorded.');
+            redirect('/bookings/' . $id);
+        }
+        view('bookings/pay', [
+            'title' => 'Payment', 'b' => $b, 'isPro' => $isPro,
+            'online' => $isClient && paymongo_enabled() && (float) $b['amount'] >= 100,
+            'active' => 'bookings',
+        ], 'layouts/shell');
     }
 
     public function recordDirect(string $id): void
@@ -27,8 +53,17 @@ final class PaymentController
             redirect('/bookings/' . $id);
         }
         $method = (string) ($_POST['method'] ?? '');
-        if (!in_array($method, self::METHODS, true)) back_with_errors(['method' => 'Choose how the payment was made.'], '/bookings/' . $id);
+        // "Pay online" on the payment screen hands over to PayMongo checkout
+        if ($method === 'online' && $isClient) { $this->startOnline($id); return; }
+        if (!in_array($method, self::METHODS, true)) back_with_errors(['method' => 'Choose how the payment was made.'], '/bookings/' . $id . '/pay');
         $reference = mb_substr(trim((string) ($_POST['reference'] ?? '')), 0, 120) ?: null;
+        // Transfers leave a receipt: ask for its reference so both sides can match the payment
+        if ($method !== 'cash') {
+            if ($reference === null) back_with_errors(['reference' => 'Enter the reference number from your ' . payment_method_label($method) . ' receipt.'], '/bookings/' . $id . '/pay');
+            if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9 \-\/#.]{3,}$/', $reference)) back_with_errors(['reference' => 'That doesn\'t look like a reference number. Use the letters and numbers from the receipt.'], '/bookings/' . $id . '/pay');
+        } else {
+            $reference = null;
+        }
         $now = date('Y-m-d H:i:s');
 
         DB::transaction(function () use ($b, $u, $isPro, $method, $reference, $now) {

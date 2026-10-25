@@ -1,201 +1,208 @@
 <?php
-$top = $featured[0] ?? null;
-$heroImage = is_file(ROOT . '/assets/img/hero.jpg') ? asset('img/hero.jpg') : null;
+$u = user();
+$isPro = is_role('provider');
+$isClientOrGuest = !$u || is_role('client');
 ?>
-<section class="hero">
-  <div class="container hero-grid">
-    <div>
-      <span class="hero-badge"><?= icon('shield-check') ?> ID-verified pros in your neighborhood</span>
-      <h1>Trusted help for every job at home, <span class="hl">right nearby.</span></h1>
-      <p class="lead">Book a plumber, cleaner, electrician or tutor near you. Compare real reviews and upfront rates, then book a time that suits you.</p>
+<div class="container home">
 
-      <form class="search-bar" action="<?= e(url('/providers')) ?>" method="get" role="search">
-        <label class="seg">
-          <?= icon('search') ?>
-          <span class="sr-only">What needs doing?</span>
-          <input name="q" placeholder="What needs doing?" autocomplete="off">
-        </label>
-        <label class="seg">
-          <?= icon('map-pin') ?>
-          <span class="sr-only">Your city</span>
-          <select name="city">
-            <option value="">Your city</option>
-            <?php foreach (cities() as $c): ?><option><?= e($c) ?></option><?php endforeach; ?>
-          </select>
-        </label>
-        <button class="btn btn-primary" type="submit">Find a pro</button>
-      </form>
-      <p class="hero-alt">Not sure who to hire? <a href="<?= e(url('/jobs/new')) ?>">Post a job and get free quotes →</a></p>
-
-      <div class="trust-row">
-        <span><?= icon('shield-check') ?> Verified IDs</span>
-        <span><?= icon('star') ?> Reviews from real bookings</span>
-        <span><?= icon('banknote') ?> Pay cash, GCash or Maya</span>
-      </div>
-    </div>
-
-    <div class="hero-visual" aria-hidden="true">
-      <div class="hero-photo">
-        <?php if ($heroImage): ?>
-          <img src="<?= e($heroImage) ?>" alt="">
-        <?php else: ?>
-          <div class="pattern">
-            <?php foreach (['wrench', 'droplet', 'zap', 'hammer', 'paint-roller', 'sparkles', 'snowflake', 'truck', 'monitor', 'leaf', 'book-open', 'scissors', 'home', 'wrench', 'droplet', 'zap'] as $i): ?><?= icon($i) ?><?php endforeach; ?>
+  <!-- 1. Banner carousel (first slide: greeting + search) beside the next booking -->
+  <section class="home-hero">
+    <!-- Banner: greeting, the main search and what makes Servease safe to use -->
+    <section class="home-banner" aria-label="Search for a service">
+      <div class="banner-copy">
+        <h1><?= $u ? 'What needs fixing, ' . e($u['first_name']) . '?' : 'What needs fixing at home?' ?></h1>
+        <form class="banner-search" action="<?= e(url('/services')) ?>" method="get" role="search">
+          <label class="banner-field">
+            <?= icon('search') ?>
+            <span class="sr-only">What do you need done?</span>
+            <input name="q" type="search" placeholder="Leaking sink, aircon cleaning, math tutor" autocomplete="off">
+          </label>
+          <button class="btn btn-accent banner-go" type="submit"><span class="hide-sm">Search</span><span class="show-sm" aria-hidden="true"><?= icon('search') ?></span><span class="sr-only show-sm">Search</span></button>
+        </form>
+        <?php if ($quick): ?>
+          <div class="banner-quick" aria-label="Popular in <?= e($city) ?>">
+            <?php foreach ($quick as $qk): ?>
+              <a href="<?= e(url('/services', ['q' => $qk['title']])) ?>"><?= e($qk['title']) ?> <span>from <?= money($qk['from_price']) ?></span></a>
+            <?php endforeach; ?>
           </div>
         <?php endif; ?>
+        <?php if ($cityPros): ?>
+          <p class="banner-note"><?= icon('badge-check', 'icon-sm') ?><span><?= $cityPros ?> verified pro<?= $cityPros === 1 ? '' : 's' ?> near you<?= $freeTomorrow ? ' · ' . $freeTomorrow . ' available tomorrow' : '' ?> · Pay after the job</span></p>
+        <?php endif; ?>
       </div>
-      <?php if ($top): ?>
-        <div class="float-card fc-pro">
-          <div class="fc-row">
-            <?= avatar($top, 'lg') ?>
-            <div class="grow" style="min-width:0">
-              <div class="pcard-name" style="font-size:1.1875rem"><span class="truncate"><?= e(full_name($top)) ?></span><span class="verified"><?= icon('shield-check') ?></span></div>
-              <div class="small muted truncate"><?= e($top['category_name']) ?> · <?= e($top['city']) ?></div>
-            </div>
-          </div>
-          <div class="fc-stats">
-            <span class="rating"><?= icon('star') ?><?= number_format((float) $top['rating_avg'], 1) ?> (<?= (int) $top['rating_count'] ?>)</span>
-            <span><?= (int) $top['jobs_completed'] ?> jobs done</span>
-            <span><?= (int) $top['years_experience'] ?> yrs exp.</span>
-          </div>
-          <div class="fc-avail"><?= icon('calendar') ?> <?= $top['is_available'] ? 'Taking new bookings this week' : 'Fully booked — join the waitlist' ?></div>
-          <div class="row mt-3" style="--gap:10px">
-            <span class="btn btn-primary grow">Request booking</span>
-            <span class="btn">Message</span>
-          </div>
-        </div>
+      <?php if ($deal): ?>
+        <a class="banner-tag" href="<?= e(url('/services', ['category' => $deal['slug']] + ($dealInCity ? ['city' => $city] : []))) ?>">
+          <span class="banner-tag-what"><?= e(preg_replace('/ &.*$/', '', $deal['name'])) ?><?= $dealInCity ? ' in ' . e($city) : '' ?></span>
+          <span class="banner-tag-price"><small>from</small><?= money($deal['from_price']) ?></span>
+          <span class="banner-tag-sub"><?= (int) $deal['n'] ?> services to compare</span>
+        </a>
       <?php endif; ?>
-      <?php if ($latestQuote): ?>
-        <div class="float-card fc-quote">
-          <div class="k">New quote received</div>
-          <div class="semibold mt-1 truncate"><?= e($latestQuote['title']) ?></div>
-          <div class="row row-between small mt-1"><span class="sub">from <?= e($latestQuote['first_name'] . ' ' . mb_substr($latestQuote['last_name'], 0, 1)) ?>.</span><span class="bold"><?= money($latestQuote['amount']) ?></span></div>
+    </section>
+
+    <?php if ($next || ($u && $isPro)): ?>
+    <!-- 3 (phone) / side card (computer): what's happening for you -->
+    <aside class="side-card">
+      <?php if ($next): ?>
+        <div class="side-head">
+          <span class="side-title"><?= $isPro ? 'Your next job' : 'Your next booking' ?></span>
+          <?= badge($next['status']) ?>
         </div>
-      <?php endif; ?>
-    </div>
-  </div>
-</section>
-
-<section class="container" style="padding-bottom:8px">
-  <div class="steps-band">
-    <div class="step-mini"><span class="step-no">1</span><div><h3>Tell us what needs doing</h3><p>Search for a pro, or post a job for free.</p></div></div>
-    <div class="step-mini"><span class="step-no">2</span><div><h3>Compare quotes &amp; chat</h3><p>See reviews and rates, ask questions first.</p></div></div>
-    <div class="step-mini"><span class="step-no">3</span><div><h3>Book, pay &amp; review</h3><p>Pay your pro directly, then leave a review.</p></div></div>
-  </div>
-</section>
-
-<section class="section-sm" style="padding-top:48px">
-  <div class="container">
-    <div class="section-head">
-      <h2>What needs doing?</h2>
-      <a class="more" href="<?= e(url('/providers')) ?>">All services <?= icon('arrow-right', 'icon-sm') ?></a>
-    </div>
-    <div class="cat-grid">
-      <?php foreach ($categories as $c): ?>
-        <a class="cat-tile" href="<?= e(url('/providers', ['category' => $c['slug']])) ?>">
-          <span class="cat-icon"><?= icon($c['icon']) ?></span>
-          <span>
-            <span class="cat-name" style="display:block"><?= e($c['name']) ?></span>
-            <span class="cat-count"><?= (int) $c['providers'] ?> pro<?= (int) $c['providers'] === 1 ? '' : 's' ?> available</span>
+        <div class="side-svc">
+          <span class="svc-ic" style="--tint:<?= category_tint($next['category_slug'] ?? null) ?>"><?= category_art($next['category_slug'] ?? null, $next['category_icon'] ?: 'wrench') ?></span>
+          <span class="grow">
+            <strong class="truncate"><?= e($next['title']) ?></strong>
+            <small class="side-who"><?= avatar(['id' => $next['other_id'], 'first_name' => $next['first_name'], 'last_name' => $next['last_name'], 'avatar' => $next['avatar']], 'xs') ?><?= $isPro ? 'for' : 'with' ?> <?= e($next['first_name'] . ' ' . mb_substr($next['last_name'], 0, 1) . '.') ?></small>
           </span>
+        </div>
+        <ul class="side-facts">
+          <li><?= icon('calendar') ?><?= $next['scheduled_date'] ? e(fmt_date($next['scheduled_date'], 'D, M j')) . ($next['scheduled_time'] ? ' · ' . e(date('g:i A', strtotime($next['scheduled_time']))) : '') : 'Date to be agreed' ?></li>
+          <li><?= icon('map-pin') ?><?= e($next['city'] ?: '—') ?></li>
+          <li><?= icon('wallet') ?><?= money($next['amount']) ?></li>
+        </ul>
+        <?php $stepAt = ['requested' => 0, 'accepted' => 1, 'in_progress' => 2][$next['status']] ?? 0; ?>
+        <ol class="side-track" aria-label="Booking progress">
+          <?php foreach (['Requested', 'Confirmed', 'In progress', 'Completed'] as $si => $sl): ?>
+            <li class="<?= $si < $stepAt ? 'is-done' : ($si === $stepAt ? 'is-now' : '') ?>"<?= $si === $stepAt ? ' aria-current="step"' : '' ?>><span class="side-track-dot"><?= $si < $stepAt ? icon('check') : '' ?></span><span class="side-track-lbl"><?= $sl ?></span></li>
+          <?php endforeach; ?>
+        </ol>
+        <div class="side-actions">
+          <a class="btn btn-dark grow" href="<?= e(url('/bookings/' . $next['id'])) ?>">View booking</a>
+          <a class="icon-btn icon-btn-outline" href="<?= e(url('/messages')) ?>" aria-label="Open inbox"><?= icon('message') ?></a>
+        </div>
+      <?php else: ?>
+        <div class="side-head"><span class="side-title">Your business</span></div>
+        <div class="side-big"><strong><?= (int) $pendingRequests ?></strong><span>new request<?= $pendingRequests === 1 ? '' : 's' ?> waiting</span></div>
+        <p class="small muted">Pros who reply within an hour win more bookings.</p>
+        <div class="side-actions"><a class="btn btn-dark grow" href="<?= e(url('/bookings')) ?>">Open bookings</a></div>
+      <?php endif; ?>
+    </aside>
+    <?php elseif (!$u): ?>
+    <aside class="side-card hide-md">
+      <div class="side-head"><span class="side-title">How Servease works</span></div>
+      <ol class="side-steps">
+        <li><span>1</span><div><strong>Pick a service</strong><small>See the price and the pro before you book</small></div></li>
+        <li><span>2</span><div><strong>Book a time that's open</strong><small>Your pro confirms the price first</small></div></li>
+        <li><span>3</span><div><strong>Pay after the job</strong><small>Directly to your pro: GCash, Maya or cash</small></div></li>
+      </ol>
+      <a class="btn-link small mt-auto" href="<?= e(url('/how-it-works')) ?>">Learn more <?= icon('arrow-right', 'icon-sm') ?></a>
+    </aside>
+    <?php endif; ?>
+  </section>
+
+  <?php if ($reminders): ?>
+  <!-- Customer to-dos: pay for finished jobs, then review them -->
+  <section class="reminders" aria-label="Needs your attention">
+    <?php foreach ($reminders as [$kind, $href, $head, $text]): ?>
+      <a class="reminder reminder-<?= $kind ?>" href="<?= e(url($href)) ?>">
+        <span class="reminder-ic"><?= icon(['pay' => 'wallet', 'overdue' => 'calendar-check'][$kind] ?? 'star') ?></span>
+        <span class="grow"><strong><?= e($head) ?></strong><small><?= e($text) ?></small></span>
+        <?= icon('chevron-right', 'reminder-go') ?>
+      </a>
+    <?php endforeach; ?>
+  </section>
+  <?php endif; ?>
+
+  <!-- Get the app (phones that can install it; hidden once installed or dismissed) -->
+  <div class="install-card show-md" data-install-card hidden>
+    <span class="install-app-icon"><img src="<?= e(url('/assets/img/icon-192.png')) ?>" alt="" width="44" height="44"></span>
+    <span class="grow"><strong>Get the app</strong><small>Full screen, one tap from your home screen</small></span>
+    <button class="btn btn-primary btn-sm" type="button" data-install>Install</button>
+    <button class="icon-btn install-close" type="button" data-install-dismiss aria-label="Not now"><?= icon('x') ?></button>
+  </div>
+
+  <!-- 2. Categories -->
+  <section class="home-section">
+    <div class="section-head">
+      <h2>Categories</h2>
+      <a class="more" href="<?= e(url('/categories')) ?>">View all</a>
+    </div>
+    <div class="cat-row">
+      <?php foreach (array_slice($categories, 0, 8) as $i => $c): ?>
+        <a class="cat-item" href="<?= e(url('/services', ['category' => $c['slug']])) ?>" style="--i:<?= $i ?>">
+          <span class="cat-icon" style="--tint:<?= category_tint($c['slug']) ?>"><?= category_art($c['slug'], $c['icon']) ?></span>
+          <span class="cat-name"><?= e(preg_replace('/ &.*$/', '', $c['name'])) ?></span>
         </a>
       <?php endforeach; ?>
     </div>
-  </div>
-</section>
+  </section>
 
-<section class="section-sm">
-  <div class="container">
+  <?php if ($isPro && $jobs): ?>
+  <section class="home-section">
     <div class="section-head">
-      <div>
-        <h2>Top-rated pros near you</h2>
-        <p class="muted">Verified identities, upfront rates and reviews from completed bookings only.</p>
-      </div>
-      <a class="more" href="<?= e(url('/providers', ['sort' => 'top'])) ?>">See all pros <?= icon('arrow-right', 'icon-sm') ?></a>
-    </div>
-    <div class="grid grid-3">
-      <?php foreach (array_slice($featured, 0, 6) as $p): ?><?= partial('provider-card', ['p' => $p]) ?><?php endforeach; ?>
-    </div>
-  </div>
-</section>
-
-<?php if ($jobs): ?>
-<section class="section-sm">
-  <div class="container">
-    <div class="section-head">
-      <div>
-        <h2>Fresh jobs from clients</h2>
-        <p class="muted">Are you a pro? Send a quote and win new customers.</p>
-      </div>
-      <a class="more" href="<?= e(url('/jobs')) ?>">Browse all jobs <?= icon('arrow-right', 'icon-sm') ?></a>
+      <h2>New jobs from customers</h2>
+      <a class="more" href="<?= e(url('/jobs')) ?>">Job board</a>
     </div>
     <div class="grid grid-2">
       <?php foreach ($jobs as $j): ?><?= View::partial('jobs/_card', ['j' => $j]) ?><?php endforeach; ?>
     </div>
-  </div>
-</section>
-<?php endif; ?>
+  </section>
+  <?php endif; ?>
 
-<section class="section-sm">
-  <div class="container">
-    <div class="split-band">
+  <?php if ($popular): ?>
+  <!-- Near you: services in the chosen city -->
+  <section class="home-section">
+    <div class="section-head">
       <div>
-        <span class="eyebrow">For clients</span>
-        <h2 class="mt-2">Hire with confidence</h2>
-        <ul class="check-list">
-          <li><?= icon('check-circle') ?><span><strong>Verified pros.</strong> <span class="muted">IDs and credentials are checked by our team.</span></span></li>
-          <li><?= icon('check-circle') ?><span><strong>Honest reviews.</strong> <span class="muted">Only clients with a completed booking can leave one.</span></span></li>
-          <li><?= icon('check-circle') ?><span><strong>Everything in one place.</strong> <span class="muted">Quotes, chat, schedule and payment records.</span></span></li>
-        </ul>
-        <a class="btn btn-primary mt-6" href="<?= e(url('/jobs/new')) ?>"><?= icon('plus') ?> Post a job, it's free</a>
+        <h2><?= $popularInCity ? 'Near you' : 'Popular services' ?></h2>
+        <p class="muted small"><?= $popularInCity ? 'Services in ' . e($city) : 'The most booked services, nearest first' ?></p>
       </div>
-      <div class="dark-side" id="pros">
-        <span class="eyebrow">For pros</span>
-        <h2 class="mt-2">Grow your business</h2>
-        <p class="muted mt-2">Get discovered by clients near you, send quotes on open jobs and manage every booking from one dashboard.</p>
-        <ul class="check-list">
-          <li><?= icon('check-circle') ?><span>Free profile with services, rates &amp; portfolio</span></li>
-          <li><?= icon('check-circle') ?><span>Verified badge that wins more clients</span></li>
-          <li><?= icon('check-circle') ?><span>Track bookings, earnings and reviews</span></li>
-        </ul>
-        <a class="btn mt-6" href="<?= e(url('/register', ['role' => 'provider'])) ?>">Become a pro <?= icon('arrow-right') ?></a>
-      </div>
+      <a class="more" href="<?= e(url('/services', $popularInCity ? ['city' => $city] : [])) ?>">View all</a>
     </div>
-  </div>
-</section>
+    <div class="near-row">
+      <?php foreach (array_slice($popular, 0, 8) as $s): ?><?= partial('near-card', ['s' => $s]) ?><?php endforeach; ?>
+    </div>
+  </section>
+  <?php endif; ?>
 
-<?php if ($reviews): ?>
-<section class="section-sm">
-  <div class="container">
-    <div class="section-head"><h2>What clients say</h2></div>
-    <div class="grid grid-3">
+  <!-- Top-rated pros -->
+  <section class="home-section">
+    <div class="section-head">
+      <div>
+        <h2>Top-rated pros</h2>
+        <p class="muted small">ID-checked, nearest to <?= e($city) ?> first</p>
+      </div>
+      <a class="more" href="<?= e(url('/providers', ['sort' => 'top'])) ?>">See all</a>
+    </div>
+    <div class="pro-tiles">
+      <?php foreach (array_slice($featured, 0, 4) as $p): ?><?= partial('pro-row', ['p' => $p]) ?><?php endforeach; ?>
+    </div>
+  </section>
+
+
+  <?php if ($reviews): ?>
+  <section class="home-section hide-md">
+    <div class="section-head"><h2>Recent reviews</h2></div>
+    <div class="review-scroller">
       <?php foreach ($reviews as $r): ?>
-        <figure class="card testimonial" style="margin:0">
+        <figure class="quote-card">
           <?= stars(5) ?>
-          <p><?= e($r['comment']) ?></p>
-          <figcaption class="row" style="--gap:12px">
-            <?= avatar(['id' => $r['client_uid'], 'first_name' => $r['first_name'], 'last_name' => $r['last_name'], 'avatar' => $r['avatar']], 'md') ?>
-            <div class="grow">
-              <div class="semibold"><?= e($r['first_name'] . ' ' . mb_substr($r['last_name'], 0, 1) . '.') ?></div>
-              <div class="small subtle">Hired <?= e($r['p_first']) ?> · <?= e($r['category_name']) ?></div>
-            </div>
+          <blockquote><?= e($r['comment']) ?></blockquote>
+          <figcaption>
+            <?= avatar(['id' => $r['client_uid'], 'first_name' => $r['first_name'], 'last_name' => $r['last_name'], 'avatar' => $r['avatar']], 'sm') ?>
+            <span><strong><?= e($r['first_name'] . ' ' . mb_substr($r['last_name'], 0, 1) . '.') ?></strong><small>Hired <?= e($r['p_first']) ?> for <?= e(mb_strtolower(preg_replace('/ &.*$/', '', (string) $r['category_name']))) ?></small></span>
           </figcaption>
         </figure>
       <?php endforeach; ?>
     </div>
-  </div>
-</section>
-<?php endif; ?>
+  </section>
+  <?php endif; ?>
 
-<section class="section-sm" style="padding-bottom:72px">
-  <div class="container">
-    <div class="cta">
-      <h2>Got something that needs fixing?</h2>
-      <p>Post your job in two minutes and start receiving quotes from verified pros near you.</p>
-      <div class="row" style="justify-content:center;flex-wrap:wrap">
-        <a class="btn btn-primary btn-lg" href="<?= e(url('/jobs/new')) ?>">Post a job</a>
-        <a class="btn btn-lg btn-outline-light" href="<?= e(url('/providers')) ?>">Browse pros</a>
+  <?php if (!$u): ?>
+  <section class="home-section hide-md">
+    <div class="promo-band">
+      <div class="promo-copy">
+        <span class="eyebrow">For service pros</span>
+        <h2>Grow your business with Servease</h2>
+        <p>Get found by customers in your city, send quotes on open jobs and run every booking from one dashboard.</p>
+        <ul class="check-list">
+          <li><?= icon('check-circle') ?><span>Free profile with your services, prices and work photos</span></li>
+          <li><?= icon('check-circle') ?><span>Verified badge that wins more customers</span></li>
+          <li><?= icon('check-circle') ?><span>Set your own working hours</span></li>
+        </ul>
+        <a class="btn btn-accent btn-lg" href="<?= e(url('/register', ['role' => 'provider'])) ?>">Join as a pro <?= icon('arrow-right') ?></a>
       </div>
+      <div class="promo-art"><?= partial('art', ['kind' => 'team']) ?></div>
     </div>
-  </div>
-</section>
+  </section>
+  <?php endif; ?>
+</div>

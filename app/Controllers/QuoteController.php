@@ -42,7 +42,7 @@ final class QuoteController
     {
         $u = require_role('provider');
         $quotes = DB::all(
-            "SELECT q.*, j.title, j.city, j.status AS job_status, j.client_id, c.name AS category_name,
+            "SELECT q.*, j.title, j.city, j.status AS job_status, j.client_id, c.name AS category_name, c.slug AS category_slug, c.icon AS category_icon,
                     (SELECT b.id FROM bookings b WHERE b.quote_id = q.id LIMIT 1) AS booking_id
              FROM quotes q JOIN jobs j ON j.id = q.job_id LEFT JOIN categories c ON c.id = j.category_id
              WHERE q.provider_id = ? ORDER BY q.created_at DESC",
@@ -60,15 +60,62 @@ final class QuoteController
         return $q;
     }
 
+    /** Step between "Accept quote" and the booking: pick a date and time the pro is free, and the address. */
+    public function schedule(string $id): void
+    {
+        $u = require_role('client');
+        $q = $this->ownedQuote($id, $u);
+        if ($q['status'] !== 'pending' || $q['job_status'] !== 'open') {
+            flash('error', 'This quote can no longer be accepted.');
+            redirect('/jobs/' . $q['job_id']);
+        }
+        $p = BookingController::findProvider((int) $q['provider_id']);
+        $dates = Availability::openDates($p);
+        // Start on the customer's preferred date when the pro works that day
+        $preferred = (string) ($q['preferred_date'] ?? '');
+        view('quotes/accept', [
+            'title' => 'Accept ' . $p['first_name'] . '\'s quote', 'q' => $q, 'p' => $p, 'dates' => $dates,
+            'busy' => $dates ? Availability::busy((int) $p['id'], $dates[0], end($dates)) : [],
+            'date' => (string) old('scheduled_date', in_array($preferred, $dates, true) ? $preferred : ($dates[0] ?? '')),
+            'active' => 'jobs',
+        ]);
+    }
+
     public function accept(string $id): void
     {
         $u = require_role('client');
         $q = $this->ownedQuote($id, $u);
         if ($q['status'] !== 'pending' || $q['job_status'] !== 'open') {
             flash('error', 'This quote can no longer be accepted.');
-            back('/jobs/' . $q['job_id']);
+            redirect('/jobs/' . $q['job_id']);
         }
-        $bookingId = DB::transaction(function () use ($q, $u) {
+        $p = BookingController::findProvider((int) $q['provider_id']);
+        $back = '/quotes/' . $q['id'] . '/accept';
+        $v = Validator::make($_POST, [
+            'scheduled_date' => 'required|date|after_today',
+            'scheduled_time' => 'required|in:' . implode(',', array_keys(BookingController::TIMES)),
+            'hours'          => 'nullable|int|min:1|max:' . Availability::MAX_HOURS,
+            'address'        => 'required|min:5|max:255|string',
+            'city'           => 'required|max:80',
+        ], ['scheduled_date' => 'Date', 'scheduled_time' => 'Time']);
+        $errors = $v->fails() ? $v->errors() : [];
+        $duration = max(1, min(Availability::MAX_HOURS, (int) ($_POST['hours'] ?? 2) ?: 2));
+        $date = (string) ($_POST['scheduled_date'] ?? '');
+        $time = (string) ($_POST['scheduled_time'] ?? '');
+        if (!isset($errors['scheduled_date']) && !Availability::worksOn($p, $date)) {
+            $errors['scheduled_date'] = $p['first_name'] . ' isn\'t working that day. Pick one of the open dates.';
+        }
+        if (!isset($errors['scheduled_date']) && !isset($errors['scheduled_time'])) {
+            if (!isset(Availability::times($p, $duration)[$time])) {
+                $errors['scheduled_time'] = 'A ' . Availability::hoursText($duration) . ' job at that time would run past ' . $p['first_name'] . '\'s working hours.';
+            } elseif (!Availability::isFree($p, $date, $time, $duration)) {
+                $errors['scheduled_time'] = $p['first_name'] . ' is already booked during part of that time. Please pick another.';
+            }
+        }
+        if ($errors) back_with_errors($errors, $back);
+        $d = $v->validated();
+
+        $bookingId = DB::transaction(function () use ($q, $u, $d, $duration) {
             DB::update('quotes', ['status' => 'accepted'], 'id = :id', ['id' => (int) $q['id']]);
             $others = DB::all("SELECT provider_id FROM quotes WHERE job_id = ? AND id <> ? AND status = 'pending'", [(int) $q['job_id'], (int) $q['id']]);
             DB::query("UPDATE quotes SET status = 'declined' WHERE job_id = ? AND id <> ? AND status = 'pending'", [(int) $q['job_id'], (int) $q['id']]);
@@ -78,7 +125,8 @@ final class QuoteController
                 'client_id' => (int) $u['id'], 'provider_id' => (int) $q['provider_id'],
                 'job_id' => (int) $q['job_id'], 'quote_id' => (int) $q['id'],
                 'title' => $q['job_title'], 'details' => $q['description'],
-                'scheduled_date' => $q['preferred_date'], 'city' => $q['city'],
+                'scheduled_date' => $d['scheduled_date'], 'scheduled_time' => $d['scheduled_time'], 'duration_hours' => $duration,
+                'address' => $d['address'], 'city' => $d['city'],
                 'amount' => (float) $q['amount'], 'status' => 'accepted', 'accepted_at' => $now,
             ]);
             DB::insert('booking_events', ['booking_id' => $bid, 'actor_id' => (int) $u['id'], 'event' => 'requested', 'note' => 'Quote accepted']);
@@ -89,8 +137,8 @@ final class QuoteController
             return $bid;
         });
         notify((int) $q['provider_id'], 'booking', 'Your quote was accepted!',
-            '“' . $q['job_title'] . '” is now a confirmed booking.', '/bookings/' . $bookingId);
-        flash('success', 'Quote accepted. Your booking is confirmed. Agree on the schedule with your pro in the chat.');
+            '“' . $q['job_title'] . '” is booked for ' . fmt_date($d['scheduled_date'], 'D, M j') . ' at ' . BookingController::TIMES[$d['scheduled_time']] . '.', '/bookings/' . $bookingId);
+        flash('success', 'Quote accepted. ' . $p['first_name'] . ' is booked for ' . fmt_date($d['scheduled_date'], 'l, M j') . ' at ' . BookingController::TIMES[$d['scheduled_time']] . '.');
         redirect('/bookings/' . $bookingId);
     }
 

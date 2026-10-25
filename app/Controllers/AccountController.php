@@ -3,6 +3,16 @@ declare(strict_types=1);
 
 final class AccountController
 {
+    /** Profile tab on phones: who you are plus every account link in one list. */
+    public function menu(): void
+    {
+        $u = require_auth();
+        $stats = is_role('provider')
+            ? DB::one("SELECT rating_avg, rating_count, jobs_completed FROM provider_profiles WHERE user_id = ?", [(int) $u['id']])
+            : null;
+        view('account/menu', ['title' => 'Profile', 'u' => $u, 'stats' => $stats, 'active' => 'account'], 'layouts/shell');
+    }
+
     public function edit(): void
     {
         $u = require_auth();
@@ -35,7 +45,7 @@ final class AccountController
             $update['email_verified_at'] = null;
             $update['verify_token_hash'] = hash('sha256', $token);
             $link = absolute_url('/verify-email', ['token' => $token]);
-            Mailer::send($d['email'], 'Confirm your new email', "Hi {$d['first_name']},\n\nConfirm your new Fixoria email address:\n$link\n");
+            Mailer::send($d['email'], 'Confirm your new email', "Hi {$d['first_name']},\n\nConfirm your new Servease email address:\n$link\n");
             Mailer::devLink('Verify your new email', $link);
         }
         DB::update('users', $update, 'id = :id', ['id' => (int) $u['id']]);
@@ -60,17 +70,25 @@ final class AccountController
     public function avatar(): void
     {
         $u = require_auth();
+        $back = ($_POST['return'] ?? '') === '/provider/profile' ? '/provider/profile' : '/settings';
         if (!empty($_POST['remove'])) {
             Upload::delete($u['avatar']);
             DB::update('users', ['avatar' => null], 'id = :id', ['id' => (int) $u['id']]);
             flash('success', 'Profile photo removed.');
-            redirect('/settings');
+            redirect($back);
         }
         $res = Upload::store($_FILES['avatar'] ?? null, 'avatars', Upload::IMAGES, 3);
-        if ($res['error']) back_with_errors(['avatar' => $res['error']], '/settings');
+        if ($res['error']) back_with_errors(['avatar' => $res['error']], $back);
         Upload::delete($u['avatar']);
         DB::update('users', ['avatar' => $res['path']], 'id = :id', ['id' => (int) $u['id']]);
         flash('success', 'Profile photo updated.');
-        redirect('/settings');
+        redirect($back);
+    }
+
+    /** Switch the interface between English and Filipino (works signed in or out). */
+    public function language(): void
+    {
+        Lang::set((string) ($_POST['lang'] ?? 'en'));
+        back('/');
     }
 }

@@ -41,6 +41,9 @@ final class ProviderController
             'newest'     => 'u.created_at DESC',
             default      => "(pp.verification_status = 'verified') DESC, (pp.rating_avg * LEAST(pp.rating_count, 10)) DESC, pp.jobs_completed DESC",
         };
+        // Optionally list pros from one city first (without hiding the others)
+        $orderParams = [];
+        if (empty($f['city']) && !empty($f['near'])) { [$nearSql, $orderParams] = near_order('pp.city', $f['near']); $order = $nearSql . ', ' . $order; }
 
         $from = "FROM users u
                  JOIN provider_profiles pp ON pp.user_id = u.id
@@ -58,11 +61,27 @@ final class ProviderController
             "SELECT u.id, u.first_name, u.last_name, u.avatar, u.created_at,
                     pp.headline, pp.city, pp.hourly_rate, pp.rating_avg, pp.rating_count, pp.jobs_completed,
                     pp.verification_status, pp.is_available, pp.years_experience,
-                    c.name AS category_name, c.slug AS category_slug, c.icon AS category_icon, $savedSelect
+                    c.name AS category_name, c.slug AS category_slug, c.icon AS category_icon, $savedSelect,
+                    (SELECT pi.image FROM portfolio_items pi WHERE pi.provider_id = u.id ORDER BY pi.id DESC LIMIT 1) AS cover
              $from ORDER BY $order LIMIT ? OFFSET ?",
-            array_merge($params, [$limit, $offset])
+            array_merge($params, $orderParams, [$limit, $offset])
         );
-        return ['rows' => $rows, 'total' => $total];
+        $sum = DB::one("SELECT MIN(pp.hourly_rate) AS from_rate, AVG(NULLIF(pp.rating_avg, 0)) AS rating,
+                               SUM(pp.verification_status = 'verified') AS verified $from", $params) ?: [];
+        return ['rows' => $rows, 'total' => $total, 'summary' => $sum];
+    }
+
+    /** provider id => their three lowest-priced services, for the laptop result rows */
+    public static function topServices(array $rows): array
+    {
+        $ids = array_map(fn($r) => (int) $r['id'], $rows);
+        if (!$ids) return [];
+        $out = [];
+        foreach (DB::all('SELECT provider_id, id, title, price, price_unit FROM provider_services WHERE provider_id IN ('
+                         . implode(',', $ids) . ') ORDER BY price, id') as $s) {
+            if (count($out[$s['provider_id']] ?? []) < 3) $out[$s['provider_id']][] = $s;
+        }
+        return $out;
     }
 
     public function index(): void
@@ -83,12 +102,22 @@ final class ProviderController
         $category = null;
         foreach (categories() as $c) if ($c['slug'] === $filters['category']) $category = $c;
 
+        $catCounts = [];
+        foreach (DB::all(
+            "SELECT c.slug, COUNT(*) AS n FROM provider_profiles pp
+             JOIN users u ON u.id = pp.user_id AND u.status = 'active' AND u.role = 'provider'
+             JOIN categories c ON c.id = pp.category_id GROUP BY c.slug"
+        ) as $r) $catCounts[$r['slug']] = (int) $r['n'];
+
         view('providers/index', [
-            'title'    => $category ? $category['name'] . ' pros' : 'Find a pro',
+            'title'    => $category ? $category['name'] . ' pros' : 'Pros',
+            'catCounts' => $catCounts,
             'filters'  => $filters,
             'category' => $category,
             'rows'     => $result['rows'],
             'total'    => $result['total'],
+            'summary'  => $result['summary'],
+            'services' => self::topServices($result['rows']),
             'page'     => $page,
             'perPage'  => $perPage,
         ]);

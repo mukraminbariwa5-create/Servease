@@ -7,7 +7,7 @@
       <tbody>
         <?php foreach ($rows as $c): ?>
           <tr style="<?= $c['is_active'] ? '' : 'opacity:.55' ?>">
-            <td><div class="cell-user"><span class="cat-icon" style="width:34px;height:34px"><?= icon($c['icon']) ?></span><div><div class="semibold"><?= e($c['name']) ?></div><div class="tiny subtle">/<?= e($c['slug']) ?></div></div></div></td>
+            <td><div class="cell-user"><span class="cat-icon cat-icon-sm" style="--tint:<?= category_tint($c['slug']) ?>"><?= category_art($c['slug'], $c['icon']) ?></span><div><div class="semibold"><?= e($c['name']) ?></div><div class="tiny subtle">/<?= e($c['slug']) ?></div></div></div></td>
             <td><?= (int) $c['providers'] ?></td><td><?= (int) $c['jobs'] ?></td><td><?= (int) $c['sort_order'] ?></td>
             <td><?= $c['is_active'] ? badge('active') : '<span class="badge">Hidden</span>' ?></td>
             <td class="text-right nowrap">

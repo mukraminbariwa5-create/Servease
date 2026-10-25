@@ -24,7 +24,7 @@ final class PayMongo
             'payment_method_types' => array_values(config('payments.paymongo.methods', ['gcash', 'paymaya', 'card'])),
             'success_url'          => $successUrl,
             'cancel_url'           => $cancelUrl,
-            'description'          => 'Fixoria booking ' . booking_ref((int) $booking['id']),
+            'description'          => 'Servease booking ' . booking_ref((int) $booking['id']),
             'reference_number'     => booking_ref((int) $booking['id']),
             'send_email_receipt'   => false,
             'show_description'     => true,

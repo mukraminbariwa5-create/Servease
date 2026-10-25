@@ -1,5 +1,12 @@
+<?php page_hero([
+    'crumbs' => [['Home', '/'], ['My jobs', null]], 'narrow' => true,
+    'title' => 'My jobs', 'lead' => 'Jobs you\'ve posted and the quotes pros sent you.',
+    'stats' => [['briefcase', '<strong>' . (int) ($counts['open'] ?? 0) . '</strong> open'], ['user-check', '<strong>' . (int) ($counts['assigned'] ?? 0) . '</strong> hired'], ['check-circle', '<strong>' . (int) ($counts['completed'] ?? 0) . '</strong> completed']],
+    'actions' => '<a class="btn btn-primary" href="' . e(url('/jobs/new')) . '">' . icon('plus') . ' Post a job</a>',
+]); ?>
+<?php app_bar('My jobs', '/account'); ?>
 <div class="page-title">
-  <div><h1>My jobs</h1><p class="muted">Jobs you've posted and the quotes you've received.</p></div>
+  <div class="app-dup"><h1>My jobs</h1><p class="muted">Jobs you've posted and the quotes you've received.</p></div>
   <a class="btn btn-primary" href="<?= e(url('/jobs/new')) ?>"><?= icon('plus') ?> Post a job</a>
 </div>
 <nav class="tabs" aria-label="Job status">
@@ -9,9 +16,9 @@
 </nav>
 <?php if (!$jobs): ?>
   <div class="card empty">
-    <div class="empty-icon"><?= icon('briefcase') ?></div>
+    <?= empty_art('briefcase') ?>
     <h3>No <?= $tab === 'assigned' ? 'hired' : e($tab) ?> jobs</h3>
-    <p><?= $tab === 'open' ? 'Post a job and pros near you will send quotes.' : 'Jobs will show up here as they move along.' ?></p>
+    <p><?= $tab === 'open' ? 'Post a job and pros in your city will send quotes.' : 'Jobs will show up here as they move along.' ?></p>
     <?php if ($tab === 'open'): ?><a class="btn btn-primary" href="<?= e(url('/jobs/new')) ?>">Post a job</a><?php endif; ?>
   </div>
 <?php else: ?>

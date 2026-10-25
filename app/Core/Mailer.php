@@ -7,7 +7,7 @@ final class Mailer
     public static function send(string $to, string $subject, string $text): bool
     {
         $driver = config('mail.driver', 'log');
-        $from = config('mail.from_name', 'Fixoria') . ' <' . config('mail.from_email', 'no-reply@fixoria.test') . '>';
+        $from = config('mail.from_name', 'Servease') . ' <' . config('mail.from_email', 'no-reply@servease.test') . '>';
 
         if ($driver === 'mail') {
             $headers = "From: $from\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";

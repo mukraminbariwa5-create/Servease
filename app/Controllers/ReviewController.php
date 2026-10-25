@@ -47,7 +47,12 @@ final class ReviewController
             DB::update('reviews', ['provider_reply' => $reply], 'id = :id', ['id' => (int) $id]);
             flash('success', 'Your reply is posted.');
         }
-        redirect('/providers/' . $u['id'] . '#reviews');
+        $return = (string) ($_POST['return'] ?? '');
+        redirect(match (true) {
+            $return === 'dashboard' => '/dashboard#reviews',
+            $return === 'booking'   => '/bookings/' . (int) $r['booking_id'] . '#review',
+            default                 => '/providers/' . $u['id'] . '#reviews',
+        });
     }
 
     /** Keep the denormalised rating figures on provider_profiles in sync. */

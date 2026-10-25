@@ -11,11 +11,11 @@
         <div class="row row-wrap row-top" style="--gap:18px">
           <?= avatar($r, 'lg') ?>
           <div class="grow" style="min-width:240px">
-            <div class="row" style="--gap:8px"><a class="semibold" style="color:var(--text);font-size:1.05rem" href="<?= e(url('/providers/' . $r['id'])) ?>"><?= e(full_name($r)) ?></a><?= badge($r['verification_status']) ?></div>
+            <div class="row" style="--gap:8px"><a class="semibold" style="color:var(--sv-text);font-size:1.05rem" href="<?= e(url('/providers/' . $r['id'])) ?>"><?= e(full_name($r)) ?></a><?= badge($r['verification_status']) ?></div>
             <div class="small muted"><?= e($r['category_name'] ?? 'No category') ?> · <?= e($r['city'] ?? '') ?> · joined <?= e(fmt_date($r['joined'])) ?></div>
             <div class="small muted"><?= e($r['email']) ?><?= $r['phone'] ? ' · ' . e($r['phone']) : '' ?></div>
             <?php if ($r['headline']): ?><p class="small mt-2">“<?= e($r['headline']) ?>”</p><?php endif; ?>
-            <?php if ($r['verification_note']): ?><p class="small mt-2" style="color:var(--red)">Note: <?= e($r['verification_note']) ?></p><?php endif; ?>
+            <?php if ($r['verification_note']): ?><p class="small mt-2" style="color:var(--sv-red)">Note: <?= e($r['verification_note']) ?></p><?php endif; ?>
           </div>
           <div class="stack" style="--gap:10px;min-width:260px">
             <?php if ($r['verification_doc']): ?>

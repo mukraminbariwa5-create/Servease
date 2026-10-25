@@ -1,14 +1,14 @@
 -- =====================================================================
---  Fixoria database schema (MySQL 5.7+ / MariaDB 10.4+, XAMPP compatible)
---  Run through the installer at http://localhost/Fixoria/install
---  or import manually in phpMyAdmin (after creating the `fixoria` database).
+--  Servease database schema (MySQL 5.7+ / MariaDB 10.4+, XAMPP compatible)
+--  Run through the installer at http://localhost/Servease/install
+--  or import manually in phpMyAdmin (after creating the `servease` database).
 -- =====================================================================
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-DROP TABLE IF EXISTS notifications, messages, conversations, reviews, payments, booking_events,
-    bookings, quotes, jobs, saved_providers, portfolio_items, provider_services,
+DROP TABLE IF EXISTS booking_issues, notifications, messages, conversations, reviews, payments, booking_events,
+    bookings, quotes, jobs, saved_providers, portfolio_items, provider_days_off, provider_services,
     provider_profiles, categories, login_attempts, users;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -80,6 +80,9 @@ CREATE TABLE provider_profiles (
     years_experience     TINYINT UNSIGNED NOT NULL DEFAULT 0,
     skills               VARCHAR(255) NULL,
     is_available         TINYINT(1) NOT NULL DEFAULT 1,
+    work_days            VARCHAR(20) NOT NULL DEFAULT '1,2,3,4,5,6',
+    work_start           TIME NOT NULL DEFAULT '08:00:00',
+    work_end             TIME NOT NULL DEFAULT '18:00:00',
     verification_status  ENUM('unverified','pending','verified','rejected') NOT NULL DEFAULT 'unverified',
     verification_doc     VARCHAR(255) NULL,
     verification_note    VARCHAR(255) NULL,
@@ -105,10 +108,19 @@ CREATE TABLE provider_services (
     description  VARCHAR(255) NULL,
     price        DECIMAL(10,2) NOT NULL,
     price_unit   ENUM('fixed','hour','day','starting') NOT NULL DEFAULT 'fixed',
+    duration_hours TINYINT UNSIGNED NOT NULL DEFAULT 1,
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_services_provider (provider_id),
     CONSTRAINT fk_services_provider FOREIGN KEY (provider_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Single dates a pro has blocked (holidays, sick days), on top of their weekly hours
+CREATE TABLE provider_days_off (
+    provider_id  INT UNSIGNED NOT NULL,
+    day          DATE NOT NULL,
+    PRIMARY KEY (provider_id, day),
+    CONSTRAINT fk_daysoff_provider FOREIGN KEY (provider_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE portfolio_items (
@@ -191,12 +203,18 @@ CREATE TABLE bookings (
     details         TEXT NULL,
     scheduled_date  DATE NULL,
     scheduled_time  VARCHAR(20) NULL,
+    duration_hours  TINYINT UNSIGNED NOT NULL DEFAULT 1,
     address         VARCHAR(255) NULL,
     city            VARCHAR(80) NULL,
     amount          DECIMAL(10,2) NOT NULL DEFAULT 0,
     status          ENUM('requested','accepted','declined','in_progress','completed','cancelled') NOT NULL DEFAULT 'requested',
     payment_status  ENUM('unpaid','pending','paid','refunded') NOT NULL DEFAULT 'unpaid',
     cancel_reason   VARCHAR(255) NULL,
+    proposed_date   DATE NULL,
+    proposed_time   VARCHAR(20) NULL,
+    proposed_by     INT UNSIGNED NULL,
+    proposed_note   VARCHAR(255) NULL,
+    reminder_sent_at DATETIME NULL,
     accepted_at     DATETIME NULL,
     started_at      DATETIME NULL,
     completed_at    DATETIME NULL,
@@ -211,6 +229,26 @@ CREATE TABLE bookings (
     CONSTRAINT fk_bookings_job FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE SET NULL,
     CONSTRAINT fk_bookings_quote FOREIGN KEY (quote_id) REFERENCES quotes (id) ON DELETE SET NULL,
     CONSTRAINT fk_bookings_service FOREIGN KEY (service_id) REFERENCES provider_services (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Problem reports on a booking (no-show, quality, payment...), handled by admins
+-- ---------------------------------------------------------------------
+CREATE TABLE booking_issues (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    booking_id   INT UNSIGNED NOT NULL,
+    reporter_id  INT UNSIGNED NOT NULL,
+    reason       ENUM('no_show','quality','payment','damage','safety','other') NOT NULL DEFAULT 'other',
+    details      TEXT NOT NULL,
+    status       ENUM('open','resolved') NOT NULL DEFAULT 'open',
+    admin_note   VARCHAR(255) NULL,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at  DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_issues_status (status, created_at),
+    KEY idx_issues_booking (booking_id),
+    CONSTRAINT fk_issues_booking FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE CASCADE,
+    CONSTRAINT fk_issues_reporter FOREIGN KEY (reporter_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE booking_events (
@@ -236,7 +274,7 @@ CREATE TABLE payments (
     payer_id      INT UNSIGNED NOT NULL,
     payee_id      INT UNSIGNED NOT NULL,
     amount        DECIMAL(10,2) NOT NULL,
-    method        ENUM('cash','gcash','maya','bank_transfer','paymongo') NOT NULL,
+    method        ENUM('cash','gcash','maya','paypal','bank_transfer','paymongo') NOT NULL,
     channel       ENUM('direct','online') NOT NULL DEFAULT 'direct',
     status        ENUM('pending','paid','failed','cancelled') NOT NULL DEFAULT 'pending',
     reference     VARCHAR(120) NULL,

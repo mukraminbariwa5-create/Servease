@@ -17,17 +17,34 @@ $eventLabels = [
     'cancelled' => ['Booking cancelled', 'x-circle'], 'declined' => ['Booking declined', 'x-circle'],
     'payment_sent' => ['Payment sent by client', 'send'], 'payment_received' => ['Payment received', 'wallet'],
     'payment_not_received' => ['Payment not received', 'alert'],
+    'reschedule_proposed' => ['New time proposed', 'refresh'], 'rescheduled' => ['Moved to a new time', 'calendar-check'],
+    'reschedule_declined' => ['New time declined', 'x-circle'], 'reschedule_withdrawn' => ['New time withdrawn', 'x-circle'],
+    'issue_reported' => ['Problem reported', 'flag'], 'issue_resolved' => ['Problem resolved by Servease', 'shield-check'],
 ];
-$methods = ['gcash' => ['GCash', 'wallet'], 'maya' => ['Maya', 'wallet'], 'cash' => ['Cash', 'banknote'], 'bank_transfer' => ['Bank transfer', 'credit-card']];
 $errors = errors();
+$canMove = in_array($status, ['requested', 'accepted'], true) && ($isClient || $isPro);
+$overdue = in_array($status, ['accepted', 'in_progress'], true) && $b['scheduled_date'] && $b['scheduled_date'] < date('Y-m-d');
+$proposal = $canMove && !empty($b['proposed_date']) ? $b : null;
+$proposedByMe = $proposal && (int) $b['proposed_by'] === (int) user_id();
+$canReport = in_array($status, IssueController::REPORTABLE, true) && ($isClient || $isPro);
+$openIssue = null;
+foreach ($issues as $iss) if ($iss['status'] === 'open') { $openIssue = $iss; break; }
+/** Radio list of reasons for the cancel/decline dialogs. */
+$reasonPicks = function (array $list, string $prefix): string {
+    $out = '<div class="reason-picks" role="radiogroup">';
+    foreach ($list as $k => $label) {
+        $out .= '<label class="reason-pick"><input type="radio" name="reason" value="' . e($k) . '" required' . checked(old('reason') === $k) . '><span>' . e($label) . '</span></label>';
+    }
+    return $out . '</div>';
+};
 ?>
+<?php app_bar('Booking details', '/bookings'); ?>
 <div class="page-title">
   <div>
-    <a class="small semibold" href="<?= e(url('/bookings')) ?>"><?= icon('arrow-left', 'icon-sm') ?> All bookings</a>
+    <a class="small semibold hide-md" href="<?= e(url('/bookings')) ?>"><?= icon('arrow-left', 'icon-sm') ?> All bookings</a>
     <h1 class="mt-2"><?= e($b['title']) ?></h1>
-    <p class="muted"><?= e(booking_ref((int) $b['id'])) ?> · Requested <?= e(fmt_date($b['created_at'], 'M j, Y')) ?></p>
+    <p class="muted">Requested <?= e(fmt_date($b['created_at'], 'F j, Y')) ?></p>
   </div>
-  <div class="row"><?= badge($status) ?><?= $b['payment_status'] !== 'unpaid' ? badge($b['payment_status']) : '' ?></div>
 </div>
 
 <div class="layout-aside" style="--aside:330px">
@@ -48,6 +65,49 @@ $errors = errors();
         </div>
       </div>
     <?php endif; ?>
+
+    <?php /* ---------- A new time waiting for an answer ---------- */ ?>
+    <?php if ($proposal): $slot = RescheduleController::slotText($b['proposed_date'], $b['proposed_time'], (int) $b['duration_hours']); ?>
+      <div class="card resched-card">
+        <div class="card-body">
+          <div class="row row-top" style="--gap:14px">
+            <span class="resched-ic"><?= icon('refresh') ?></span>
+            <div class="grow">
+              <h3><?= $proposedByMe ? 'You proposed a new time' : e($other['first_name']) . ' proposed a new time' ?></h3>
+              <p class="mt-1"><span class="strike muted"><?= e($b['scheduled_date'] ? RescheduleController::slotText($b['scheduled_date'], $b['scheduled_time'], (int) $b['duration_hours']) : 'Not set') ?></span> <?= icon('arrow-right', 'icon-sm') ?> <strong><?= e($slot) ?></strong></p>
+              <?php if ($b['proposed_note']): ?><p class="small muted mt-1">“<?= e($b['proposed_note']) ?>”</p><?php endif; ?>
+              <div class="row row-wrap mt-4" style="--gap:8px">
+                <?php if ($proposedByMe): ?>
+                  <span class="small muted">Waiting for <?= e($other['first_name']) ?> to answer.</span>
+                  <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/reschedule/answer')) ?>"><?= csrf_field() ?><input type="hidden" name="answer" value="withdraw"><button class="btn btn-sm btn-ghost" type="submit">Withdraw</button></form>
+                <?php else: ?>
+                  <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/reschedule/answer')) ?>"><?= csrf_field() ?><input type="hidden" name="answer" value="accept"><button class="btn btn-primary btn-sm" type="submit"><?= icon('check') ?> Accept new time</button></form>
+                  <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/reschedule/answer')) ?>"><?= csrf_field() ?><input type="hidden" name="answer" value="decline"><button class="btn btn-sm" type="submit">Keep original</button></form>
+                  <a class="btn btn-sm btn-ghost" href="<?= e(url('/bookings/' . $b['id'] . '/reschedule')) ?>">Suggest another</a>
+                <?php endif; ?>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <?php endif; ?>
+
+    <?php if ($overdue && ($isClient || $isPro)): ?>
+      <div class="alert alert-warning"><?= icon('calendar-check') ?><div>
+        <strong>This job was booked for <?= e(fmt_date($b['scheduled_date'], 'l, M j')) ?>.</strong>
+        <?= $isPro
+            ? 'If the work is done, mark it completed. If it didn\'t happen, propose a new time or cancel it.'
+            : 'If the work is done, ask ' . e($b['p_first']) . ' to mark it completed. If it didn\'t happen, message them' . ($status === 'accepted' ? ', propose a new time' : '') . ' or report a problem.' ?>
+      </div></div>
+    <?php endif; ?>
+
+    <?php foreach ($issues as $iss): ?>
+      <div class="alert <?= $iss['status'] === 'open' ? 'alert-info' : 'alert-success' ?>"><?= icon($iss['status'] === 'open' ? 'flag' : 'shield-check') ?><div>
+        <strong><?= $iss['status'] === 'open' ? 'Problem reported ' . e(time_ago($iss['created_at'])) : 'Servease resolved your report' ?>:</strong>
+        <?= e(IssueController::REASONS[$iss['reason']] ?? '') ?>.
+        <?= $iss['status'] === 'open' ? 'Our team is looking into it.' : '“' . e($iss['admin_note']) . '”' ?>
+      </div></div>
+    <?php endforeach; ?>
 
     <?php /* ---------- What to do next ---------- */ ?>
     <?php if ($isPro && $status === 'requested'): ?>
@@ -73,19 +133,24 @@ $errors = errors();
           <?= csrf_field() ?><input type="hidden" name="action" value="decline">
           <div class="modal-head"><h3>Decline this request?</h3></div>
           <div class="modal-body">
-            <label class="label" for="decline-note">Let <?= e($b['c_first']) ?> know why <span class="opt">(optional)</span></label>
-            <textarea class="textarea mt-2" id="decline-note" name="note" maxlength="255" placeholder="e.g. Fully booked that day, available next week."></textarea>
+            <span class="label">Why can't you take it?</span>
+            <?= $reasonPicks(BookingController::CANCEL_REASONS['decline'], 'd') ?>
+            <label class="label mt-4" for="decline-note">Anything to add for <?= e($b['c_first']) ?>? <span class="opt">(optional)</span></label>
+            <textarea class="textarea mt-2" id="decline-note" name="note" maxlength="200" placeholder="e.g. I'm free next week if that works."></textarea>
           </div>
           <div class="modal-foot"><button class="btn" type="button" data-close>Back</button><button class="btn btn-danger-solid" type="submit">Decline request</button></div>
         </form>
       </dialog>
-    <?php elseif ($isPro && in_array($status, ['accepted', 'in_progress'], true)): ?>
+    <?php elseif ($isPro && in_array($status, ['accepted', 'in_progress'], true)): $dayHasCome = BookingController::dayHasCome($b); ?>
       <div class="card card-body">
         <div class="row row-between row-wrap">
           <div>
-            <h3><?= $status === 'accepted' ? 'Ready when you are' : 'Work in progress' ?></h3>
-            <p class="muted small mt-1"><?= $status === 'accepted' ? 'Mark the job as started when you arrive, then complete it when done.' : 'Mark the job as completed once the work is done.' ?></p>
+            <h3><?= $status === 'accepted' ? ($dayHasCome ? 'Ready when you are' : 'Booked for ' . e(fmt_date($b['scheduled_date'], 'l, M j'))) : 'Work in progress' ?></h3>
+            <p class="muted small mt-1"><?= $status === 'accepted'
+                ? ($dayHasCome ? 'Mark the job as started when you arrive, then complete it when done.' : 'You can start and complete this job from that day. Plans changed? Propose a new time below.')
+                : 'Mark the job as completed once the work is done.' ?></p>
           </div>
+          <?php if ($dayHasCome): ?>
           <div class="row">
             <?php if ($status === 'accepted'): ?>
               <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/status')) ?>"><?= csrf_field() ?><input type="hidden" name="action" value="start"><button class="btn" type="submit"><?= icon('play') ?> Start work</button></form>
@@ -94,26 +159,75 @@ $errors = errors();
               <?= csrf_field() ?><input type="hidden" name="action" value="complete"><button class="btn btn-primary" type="submit"><?= icon('check-circle') ?> Mark completed</button>
             </form>
           </div>
+          <?php else: ?>
+            <span class="badge badge-blue"><?= icon('calendar', 'icon-sm') ?> <?= e(fmt_date($b['scheduled_date'], 'M j')) ?></span>
+          <?php endif; ?>
         </div>
       </div>
     <?php elseif ($isClient && $status === 'requested'): ?>
       <div class="alert alert-info"><?= icon('clock') ?><div><strong>Waiting for <?= e($b['p_first']) ?> to confirm.</strong> Most pros respond within a few hours. You can message them in the meantime.</div></div>
     <?php elseif ($isClient && $status === 'accepted'): ?>
-      <div class="alert alert-success"><?= icon('check-circle') ?><div><strong>Confirmed!</strong> <?= e($b['p_first']) ?> will be there on <?= e(fmt_date($b['scheduled_date'], 'l, M j')) ?> at <?= e(BookingController::TIMES[$b['scheduled_time']] ?? $b['scheduled_time']) ?>.</div></div>
+      <div class="alert alert-success"><?= icon('check-circle') ?><div><strong>Confirmed!</strong>
+        <?php if ($b['scheduled_date'] && $b['scheduled_time']): ?>
+          <?= e($b['p_first']) ?> will be there on <?= e(fmt_date($b['scheduled_date'], 'l, M j')) ?>, <?= e(Availability::range($b['scheduled_time'], (int) $b['duration_hours'])) ?>.
+        <?php elseif ($b['scheduled_date']): ?>
+          <?= e($b['p_first']) ?> is booked for <?= e(fmt_date($b['scheduled_date'], 'l, M j')) ?>. Agree on the exact time in the chat.
+        <?php else: ?>
+          Agree on the date and time with <?= e($b['p_first']) ?> in the chat.
+        <?php endif; ?>
+      </div></div>
     <?php endif; ?>
+
+    <?php /* ---------- The job ticket: everything agreed for this booking, like a work-order slip ---------- */
+      $stamp = ['requested' => ['Waiting', 'amber'], 'accepted' => ['Confirmed', 'blue'], 'in_progress' => ['In progress', 'violet'],
+                'completed' => ['Done', 'green'], 'cancelled' => ['Cancelled', 'red'], 'declined' => ['Declined', 'red']][$status] ?? [ucfirst($status), 'blue']; ?>
+    <article class="ticket" aria-label="Job ticket <?= e(booking_ref((int) $b['id'])) ?>">
+      <header class="ticket-head">
+        <div class="grow">
+          <span class="ticket-kind">Job ticket</span>
+          <span class="ticket-ref"><?= e(booking_ref((int) $b['id'])) ?></span>
+        </div>
+        <span class="stamp stamp-<?= $stamp[1] ?>"><?= e($stamp[0]) ?></span>
+        <?php if ($b['payment_status'] === 'paid'): ?><span class="stamp stamp-green stamp-paid">Paid</span><?php endif; ?>
+      </header>
+      <div class="ticket-perf" aria-hidden="true"></div>
+      <dl class="ticket-rows">
+        <div><dt>When</dt><dd><?= e($b['scheduled_date'] ? fmt_date($b['scheduled_date'], 'l, F j') : 'To be agreed') ?><?php if ($b['scheduled_time']): ?><small><?= e(Availability::range($b['scheduled_time'], (int) $b['duration_hours'])) ?></small><?php endif; ?></dd></div>
+        <div><dt>Where</dt><dd><?= e(trim(($b['address'] ?? '') . ', ' . ($b['city'] ?? ''), ', ')) ?: 'To be agreed' ?></dd></div>
+        <?php if ($b['category_name']): ?><div><dt>Trade</dt><dd><?= e($b['category_name']) ?></dd></div><?php endif; ?>
+        <div><dt><?= $isPro ? 'Customer' : 'Pro' ?></dt><dd><?= e(full_name($other)) ?></dd></div>
+        <div class="ticket-total"><dt>Agreed price</dt><dd><span class="price-tag"><?= money($b['amount']) ?></span></dd></div>
+      </dl>
+      <?php if ($b['details']): ?>
+        <div class="ticket-perf" aria-hidden="true"></div>
+        <div class="ticket-notes">
+          <span class="ticket-label">What needs doing</span>
+          <p style="white-space:pre-line"><?= e($b['details']) ?></p>
+        </div>
+      <?php endif; ?>
+      <?php if ($canMove || $canReport): ?>
+        <div class="ticket-foot row row-between row-wrap" style="--gap:8px">
+          <span class="small muted"><?= $canMove ? 'Plans changed? ' . e($other['first_name']) . ' will be told right away.' : 'Something wrong with this booking?' ?></span>
+          <div class="row row-wrap" style="--gap:6px">
+            <?php if ($canMove && !$proposal): ?><a class="btn btn-sm" href="<?= e(url('/bookings/' . $b['id'] . '/reschedule')) ?>"><?= icon('refresh') ?> Propose a new time</a><?php endif; ?>
+            <?php if ($canMove): ?><button class="btn btn-ghost btn-sm btn-danger-text" type="button" data-open="cancel-dialog"><?= icon('x-circle') ?> Cancel booking</button><?php endif; ?>
+            <?php if ($canReport && !$openIssue): ?><button class="btn btn-ghost btn-sm" type="button" data-open="report-dialog" id="report"><?= icon('flag') ?> Report a problem</button><?php endif; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+    </article>
 
     <?php /* ---------- Payment ---------- */ ?>
     <?php if (in_array($status, ['accepted', 'in_progress', 'completed'], true)): ?>
       <div class="card" id="payment">
         <div class="card-header"><h3><?= icon('wallet') ?> Payment</h3><?= badge($b['payment_status']) ?></div>
         <div class="card-body">
-          <div class="summary-line"><span class="muted">Agreed price</span><span><?= money($b['amount'], true) ?></span></div>
-          <div class="summary-line"><span class="muted">Fixoria service fee</span><span><?= money(0, true) ?></span></div>
-          <div class="summary-line total"><span>Total to pay your pro</span><span><?= money($b['amount'], true) ?></span></div>
+          <div class="summary-line total"><span><?= $isPro ? 'Agreed price' : 'Agreed price to pay ' . e($b['p_first']) ?></span><span><?= money($b['amount']) ?></span></div>
+          <p class="tiny subtle mt-1">No Servease fees. <?= $isPro ? 'You keep the full amount.' : e($b['p_first']) . ' gets the full amount.' ?></p>
 
           <?php if ($paidPay): ?>
             <div class="alert alert-success mt-4"><?= icon('receipt') ?><div>
-              <strong>Paid <?= money($paidPay['amount'], true) ?></strong> via <?= e(payment_method_label($paidPay['method'])) ?>
+              <strong>Paid <?= money($paidPay['amount']) ?></strong> via <?= e(payment_method_label($paidPay['method'])) ?>
               on <?= e(fmt_date($paidPay['paid_at'], 'M j, Y g:i A')) ?><?= $paidPay['reference'] ? ' · Ref ' . e($paidPay['reference']) : '' ?>.
             </div></div>
           <?php elseif ($pendingPay): ?>
@@ -129,35 +243,12 @@ $errors = errors();
               <div class="alert alert-info mt-4"><?= icon('clock') ?><div>You recorded a <?= e(payment_method_label($pendingPay['method'])) ?> payment. Waiting for <?= e($b['p_first']) ?> to confirm they received it.</div></div>
             <?php endif; ?>
           <?php elseif ($payable && ($isClient || $isPro)): ?>
-            <form class="mt-6" method="post" action="<?= e(url('/bookings/' . $b['id'] . '/pay')) ?>">
-              <?= csrf_field() ?>
-              <div class="label mb-2"><?= $isPro ? 'Record a payment you received' : 'Paid your pro directly? Record it here' ?></div>
-              <div class="choices choices-compact" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-                <?php foreach ($methods as $key => [$label, $ic]): ?>
-                  <label class="choice">
-                    <input type="radio" name="method" value="<?= $key ?>" <?= $key === 'gcash' ? 'checked' : '' ?>>
-                    <span class="choice-body" style="align-items:center;padding:12px 40px 12px 12px"><span class="choice-icon" style="width:34px;height:34px"><?= icon($ic) ?></span><span class="choice-title"><?= $label ?></span></span>
-                  </label>
-                <?php endforeach; ?>
-              </div>
-              <?php if (!empty($errors['method'])): ?><div class="field-error mt-2"><?= e($errors['method']) ?></div><?php endif; ?>
-              <div class="row row-wrap mt-4" style="align-items:flex-end">
-                <div class="field grow" style="min-width:220px">
-                  <label class="label" for="reference">Reference no. <span class="opt">(optional)</span></label>
-                  <div class="input-icon"><?= icon('receipt') ?><input class="input" id="reference" name="reference" maxlength="120" placeholder="e.g. GCash ref 1234 567 890"></div>
-                </div>
-                <button class="btn btn-primary" type="submit" style="height:48px"><?= icon('check') ?> <?= $isPro ? 'Mark as received' : 'I\'ve paid' ?></button>
-              </div>
-              <p class="help mt-3"><?= $isPro ? 'The booking will be marked as paid right away.' : 'Your pro will be asked to confirm they received it.' ?></p>
-            </form>
-            <?php if ($isClient && paymongo_enabled()): ?>
-              <div class="or">or pay online</div>
-              <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/pay-online')) ?>">
-                <?= csrf_field() ?>
-                <button class="btn btn-dark btn-block" type="submit"><?= icon('credit-card') ?> Pay <?= money($b['amount']) ?> with GCash, Maya or card</button>
-                <p class="help text-center mt-2">Secure checkout by PayMongo.</p>
-              </form>
-            <?php endif; ?>
+            <div class="pay-note mt-4"><?= icon('info') ?><p><?= $isPro
+                ? 'Servease doesn\'t handle money. When your customer pays you in person or by transfer, record it so you both have a receipt.'
+                : (paymongo_enabled() ? 'Pay online now, or pay ' . e($b['p_first']) . ' directly after the job and record it here.' : 'Pay ' . e($b['p_first']) . ' directly after the job (in person or from your own GCash, Maya or bank app), then record it here so you both have a receipt.') ?></p></div>
+            <a class="btn btn-primary btn-lg btn-block mt-4" href="<?= e(url('/bookings/' . $b['id'] . '/pay')) ?>">
+              <?= icon('wallet') ?> <?= $isPro ? 'Record payment received' : (paymongo_enabled() ? 'Pay ' . money($b['amount']) : 'Record a payment') ?>
+            </a>
           <?php endif; ?>
         </div>
       </div>
@@ -169,7 +260,14 @@ $errors = errors();
         <?php if ($review): ?>
           <div class="row row-between"><h3><?= $isClient ? 'Your review' : 'Client review' ?></h3><?= stars((float) $review['rating']) ?></div>
           <?php if ($review['comment']): ?><p class="mt-3">“<?= e($review['comment']) ?>”</p><?php endif; ?>
-          <?php if ($review['provider_reply']): ?><div class="review-reply"><strong>Reply:</strong> <?= e($review['provider_reply']) ?></div><?php endif; ?>
+          <?php if ($review['provider_reply']): ?><div class="review-reply"><strong>Reply:</strong> <?= e($review['provider_reply']) ?></div>
+          <?php elseif ($isPro): ?>
+            <form class="reply-inline mt-3" method="post" action="<?= e(url('/reviews/' . $review['id'] . '/reply')) ?>">
+              <?= csrf_field() ?><input type="hidden" name="return" value="booking">
+              <input class="input" name="reply" placeholder="Thank <?= e($b['c_first']) ?> with a public reply…" maxlength="500" required aria-label="Reply to this review">
+              <button class="btn" type="submit">Reply</button>
+            </form>
+          <?php endif; ?>
         <?php elseif ($isClient): ?>
           <h3>How did <?= e($b['p_first']) ?> do?</h3>
           <p class="muted small mt-1">Your review helps other clients and rewards great pros.</p>
@@ -214,36 +312,42 @@ $errors = errors();
       </div>
     <?php endif; ?>
 
-    <div class="card">
-      <div class="card-header"><h3>Booking details</h3></div>
-      <div class="card-body">
-        <dl class="kv">
-          <dt>Schedule</dt><dd><?= e($b['scheduled_date'] ? fmt_date($b['scheduled_date'], 'l, F j, Y') : 'To be agreed') ?><?= $b['scheduled_time'] ? ' · ' . e(BookingController::TIMES[$b['scheduled_time']] ?? $b['scheduled_time']) : '' ?></dd>
-          <dt>Address</dt><dd><?= e(trim(($b['address'] ?? '') . ', ' . ($b['city'] ?? ''), ', ')) ?: '—' ?></dd>
-          <dt>Price</dt><dd><?= money($b['amount']) ?></dd>
-          <?php if ($b['category_name']): ?><dt>Service</dt><dd><?= e($b['category_name']) ?></dd><?php endif; ?>
-        </dl>
-        <?php if ($b['details']): ?>
-          <hr><div class="label mb-2">Job details</div>
-          <p class="muted" style="white-space:pre-line"><?= e($b['details']) ?></p>
-        <?php endif; ?>
-      </div>
-    </div>
-
     <?php if (in_array($status, ['requested', 'accepted'], true) && ($isClient || $isPro)): ?>
-      <div class="row" style="justify-content:flex-end">
-        <button class="btn btn-ghost btn-sm" type="button" data-open="cancel-dialog"><?= icon('x-circle') ?> Cancel booking</button>
-      </div>
       <dialog class="modal" id="cancel-dialog">
         <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/status')) ?>">
           <?= csrf_field() ?><input type="hidden" name="action" value="cancel">
           <div class="modal-head"><h3>Cancel this booking?</h3></div>
           <div class="modal-body">
-            <p class="muted mb-3"><?= e($other['first_name']) ?> will be notified.</p>
-            <label class="label" for="cancel-note">Reason <span class="opt">(optional)</span></label>
-            <textarea class="textarea mt-2" id="cancel-note" name="note" maxlength="255"></textarea>
+            <p class="muted mb-3"><?= e($other['first_name']) ?> will be notified and sees your reason.</p>
+            <span class="label">Why are you cancelling?</span>
+            <?= $reasonPicks(BookingController::CANCEL_REASONS[$isPro ? 'provider' : 'client'], 'c') ?>
+            <label class="label mt-4" for="cancel-note">Anything to add? <span class="opt">(optional, required for “Something else”)</span></label>
+            <textarea class="textarea mt-2" id="cancel-note" name="note" maxlength="200"></textarea>
+            <?php if (!$proposal && $canMove): ?><p class="small muted mt-3"><?= icon('info', 'icon-sm') ?> Only the time doesn't work? <a href="<?= e(url('/bookings/' . $b['id'] . '/reschedule')) ?>">Propose a new time</a> instead.</p><?php endif; ?>
           </div>
           <div class="modal-foot"><button class="btn" type="button" data-close>Keep booking</button><button class="btn btn-danger-solid" type="submit">Cancel booking</button></div>
+        </form>
+      </dialog>
+    <?php endif; ?>
+
+    <?php if ($canReport && !$openIssue): ?>
+      <dialog class="modal" id="report-dialog">
+        <form method="post" action="<?= e(url('/bookings/' . $b['id'] . '/report')) ?>">
+          <?= csrf_field() ?>
+          <div class="modal-head"><h3>Report a problem</h3></div>
+          <div class="modal-body">
+            <p class="muted mb-3">This goes to the Servease team, not to <?= e($other['first_name']) ?>. We'll look into it and reply on this booking.</p>
+            <span class="label">What happened?</span>
+            <div class="reason-picks" role="radiogroup">
+              <?php foreach (IssueController::REASONS as $k => $label): ?>
+                <label class="reason-pick"><input type="radio" name="reason" value="<?= e($k) ?>" required<?= checked(old('reason') === $k) ?>><span><?= e($label) ?></span></label>
+              <?php endforeach; ?>
+            </div>
+            <label class="label mt-4" for="report-details">Tell us more</label>
+            <textarea class="textarea mt-2" id="report-details" name="details" rows="4" minlength="20" maxlength="2000" required placeholder="What happened, when, and what you'd like us to do."><?= e(old('details')) ?></textarea>
+            <?= field_error('details') ?>
+          </div>
+          <div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit"><?= icon('send') ?> Send report</button></div>
         </form>
       </dialog>
     <?php endif; ?>
@@ -257,7 +361,7 @@ $errors = errors();
         <div class="grow" style="min-width:0">
           <div class="semibold row" style="--gap:5px"><span class="truncate"><?= e(full_name($other)) ?></span>
             <?php if (!$isPro && $b['p_verified'] === 'verified'): ?><span class="verified"><?= icon('badge-check', 'icon-sm') ?></span><?php endif; ?></div>
-          <div class="small muted truncate"><?= e($isPro ? ($b['city'] ?? '') : ($b['p_headline'] ?? '')) ?></div>
+          <div class="small muted clamp-2"><?= e($isPro ? ($b['city'] ?? '') : ($b['p_headline'] ?? '')) ?></div>
         </div>
       </div>
       <?php if (in_array($status, ['accepted', 'in_progress'], true)): ?>

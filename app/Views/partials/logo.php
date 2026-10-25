@@ -1,0 +1,2 @@
+<?php /* Servease mark: a yellow price tag on workwear blue (the same tag used for prices and the job ticket). */ ?>
+<svg class="logo<?= isset($class) ? ' ' . e($class) : '' ?>" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="1" y="1" width="46" height="46" rx="12" class="logo-bg"/><g transform="rotate(-28 24 24)"><path class="logo-tag" d="M10.5 24 17.5 15.5H36.5a1.5 1.5 0 0 1 1.5 1.5V31a1.5 1.5 0 0 1-1.5 1.5H17.5Z"/><circle class="logo-hole" cx="19" cy="24" r="2.8"/><path class="logo-line" d="M25 21.5h8M25 26.5h5"/></g></svg>

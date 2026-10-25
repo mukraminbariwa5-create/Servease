@@ -6,9 +6,10 @@ $urgency = ['flexible' => 'Flexible', 'this_week' => 'This week', 'urgent' => 'U
 $client = ['id' => $job['client_id'], 'first_name' => $job['first_name'], 'last_name' => $job['last_name'], 'avatar' => $job['avatar']];
 $pendingQuotes = array_filter($quotes, fn($q) => $q['status'] === 'pending');
 ?>
+<?php app_bar('Job details', is_role('provider') ? '/jobs' : '/my/jobs'); ?>
 <section class="page-header">
   <div class="container">
-    <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <nav class="breadcrumbs hide-md" aria-label="Breadcrumb">
       <a href="<?= e(url('/jobs')) ?>">Job board</a><?= icon('chevron-right') ?><span class="truncate"><?= e(str_limit($job['title'], 50)) ?></span>
     </nav>
     <div class="row row-between row-top row-wrap">
@@ -66,7 +67,7 @@ $pendingQuotes = array_filter($quotes, fn($q) => $q['status'] === 'pending');
                 <div class="grow">
                   <div class="row row-between row-top">
                     <div>
-                      <a class="semibold" href="<?= e(url('/providers/' . $q['provider_id'])) ?>" style="color:var(--text)"><?= e(full_name($pro)) ?></a>
+                      <a class="semibold" href="<?= e(url('/providers/' . $q['provider_id'])) ?>" style="color:var(--sv-text)"><?= e(full_name($pro)) ?></a>
                       <?php if ($q['verification_status'] === 'verified'): ?><span class="verified"><?= icon('shield-check', 'icon-sm') ?></span><?php endif; ?>
                       <div class="small muted"><?= e($q['headline']) ?></div>
                     </div>
@@ -84,9 +85,7 @@ $pendingQuotes = array_filter($quotes, fn($q) => $q['status'] === 'pending');
                   <p class="mt-3" style="white-space:pre-line"><?= e($q['message']) ?></p>
                   <div class="row row-wrap mt-4" style="--gap:8px">
                     <?php if ($isOwner && $q['status'] === 'pending' && $job['status'] === 'open'): ?>
-                      <form method="post" action="<?= e(url('/quotes/' . $q['id'] . '/accept')) ?>" data-confirm="Accept <?= e($q['first_name']) ?>'s quote of <?= e(money($q['amount'])) ?>? This creates a confirmed booking and closes the job to other quotes.">
-                        <?= csrf_field() ?><button class="btn btn-primary btn-sm" type="submit"><?= icon('check') ?> Accept quote</button>
-                      </form>
+                      <a class="btn btn-primary btn-sm" href="<?= e(url('/quotes/' . $q['id'] . '/accept')) ?>"><?= icon('check') ?> Accept quote</a>
                       <form method="post" action="<?= e(url('/quotes/' . $q['id'] . '/decline')) ?>">
                         <?= csrf_field() ?><button class="btn btn-sm" type="submit">Decline</button>
                       </form>
