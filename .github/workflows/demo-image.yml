@@ -1,0 +1,75 @@
+# Builds the public demo container (Dockerfile) and checks it end to end on every push.
+name: Demo container
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo-image:
+    name: Demo container (Render)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: |
+          set -o pipefail
+          if ! docker build --progress=plain -t servease-demo . 2>&1 | tee build.log; then
+            echo "::error title=Docker build failed::$(tail -n 60 build.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+            exit 1
+          fi
+      - name: Start it (512 MB, like Render's free plan)
+        run: |
+          docker run -d --name sv --memory=512m -p 8080:10000 servease-demo
+          for i in $(seq 1 90); do curl -fsS http://localhost:8080/login >/dev/null 2>&1 && break; sleep 2; done
+      - name: Smoke test
+        run: |
+          python3 - <<'PY'
+          import re, urllib.request, urllib.parse, http.cookiejar
+          B = 'http://localhost:8080'
+          def session():
+              return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+          def token(op, path):
+              return re.search(r'name="csrf-token" content="([^"]+)"', op.open(B + path).read().decode()).group(1)
+          def post(op, path, fields):
+              fields = dict(fields, _token=token(op, '/login' if path == '/login' else '/settings'))
+              r = op.open(B + path, urllib.parse.urlencode(fields).encode())
+              return r, r.read().decode()
+
+          page = session().open(B + '/login').read().decode()
+          assert 'client@servease.test' in page, 'demo accounts missing on the sign-in page'
+          assert 'public demo that resets every day' in page, 'demo notice missing'
+          print('sign-in page shows the demo accounts')
+
+          for email in ['client@servease.test', 'provider@servease.test', 'admin@servease.test']:
+              op = session()
+              r, body = post(op, '/login', {'email': email, 'password': 'servease123'})
+              assert '/login' not in r.geturl() and '/welcome' not in r.geturl(), email + ' could not sign in: ' + r.geturl()
+              assert 'Fatal error' not in body and 'Warning:' not in body, 'PHP error after signing in as ' + email
+              print(email, 'signs in ->', r.geturl())
+
+          op = session()
+          post(op, '/login', {'email': 'client@servease.test', 'password': 'servease123'})
+          r, body = post(op, '/settings/password', {'current_password': 'servease123', 'password': 'hijacked99', 'password_confirmation': 'hijacked99'})
+          assert 'shared demo account' in body, 'demo password change was not refused'
+          r, body = post(session(), '/login', {'email': 'client@servease.test', 'password': 'servease123'})
+          assert '/login' not in r.geturl(), 'demo password stopped working'
+          print('demo password is protected')
+
+          for path in ['/', '/services', '/providers', '/bookings']:
+              t = op.open(B + path).read().decode()
+              assert 'Fatal error' not in t, path
+          print('main pages load')
+          PY
+      - name: Memory use
+        if: always()
+        run: docker stats --no-stream sv || true
+      - name: Container log
+        if: failure()
+        run: |
+          docker logs sv > container.log 2>&1 || true
+          echo "::error title=Container log::$(tail -n 40 container.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"

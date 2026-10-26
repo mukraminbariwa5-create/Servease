@@ -173,7 +173,7 @@ New columns and tables are added automatically on the first page load after an u
 
 Upload the folder to any PHP 8 host with MySQL. Create the database, update `config/config.php`, run the installer once, then set `'env' => 'production'` and `'debug' => false`. Use HTTPS, which also enables secure cookies automatically and lets phones install Servease as an app. Free certificates from Let's Encrypt (offered by most hosts) are enough.
 
-**[DEPLOY.md](DEPLOY.md)** walks through putting Servease on free hosting (InfinityFree) as a **public portfolio demo**. Demo mode (`'public_demo' => true`) protects the demo accounts so one visitor can't lock out the next, turns uploads off, and puts the demo data back on the first visit of each day.
+**[docker/README.md](docker/README.md)** runs the public demo on Render's free plan in one container (PHP, Apache and MariaDB). **[DEPLOY.md](DEPLOY.md)** walks through putting Servease on free shared hosting (InfinityFree) as a **public portfolio demo**. Demo mode (`'public_demo' => true`) protects the demo accounts so one visitor can't lock out the next, turns uploads off, and puts the demo data back on the first visit of each day.
 
 ## Author & license
 

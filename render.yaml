@@ -1,0 +1,9 @@
+# Render Blueprint for the Servease public demo (free plan). See docker/README.md.
+services:
+  - type: web
+    name: servease-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /login
+    autoDeploy: true
