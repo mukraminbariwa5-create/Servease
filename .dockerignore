@@ -1,0 +1,13 @@
+.git
+config/config.php
+deploy
+_old
+fixoria-prototype
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+uploads/portfolio/*
+!uploads/portfolio/.gitkeep
+storage/logs/*
+!storage/logs/.gitkeep
+storage/cache/*
+!storage/cache/.gitkeep
