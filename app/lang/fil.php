@@ -8,6 +8,7 @@
 return [
 'exact' => [
     // UI pass (Oct 2026)
+    "That didn't go through. Please try again." => 'Hindi ito natuloy. Pakisubukan ulit.', 'You have been signed out.' => 'Naka-log out ka na.',
     'Aircon, plumbing, cleaning and repairs from ID-checked pros in Metro Manila.' => 'Aircon, tubero, linis at ayos mula sa mga ID-checked na pro sa Metro Manila.',
     'Services from' => 'Serbisyo mula', 'Your city' => 'Sa lungsod mo',
     'No new jobs right now' => 'Wala pang bagong job', "We'll notify you when a customer posts one in your category." => 'Aabisuhan ka namin kapag may customer na nag-post sa kategorya mo.',

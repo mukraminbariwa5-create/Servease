@@ -53,6 +53,33 @@ final class Router
             (new $class())->$action(...$params);
             return;
         }
+        if ($allowed && $method === 'GET') self::recoverLostForm($path);
         abort($allowed ? 405 : 404);
+    }
+
+    /**
+     * A GET for a form-only address means the form's POST never reached the app. Free hosts
+     * such as InfinityFree run a browser check that can catch a form submit and replay it as
+     * a plain GET (adding ?i=1), which drops the form data. Instead of an error page, send the
+     * visitor back with a short note so they can press the button again.
+     */
+    private static function recoverLostForm(string $path): void
+    {
+        $sameSite = ($_SERVER['HTTP_SEC_FETCH_SITE'] ?? '') === 'same-origin';
+        if ((rtrim($path, '/') === '/logout') && $sameSite) {
+            Auth::logout();
+            flash('success', 'You have been signed out.');
+            redirect('/login');
+        }
+        flash('error', "That didn't go through. Please try again.");
+        // Go back to the page the form was on, but never to this same address (that would loop)
+        $ref = (string)($_SERVER['HTTP_REFERER'] ?? '');
+        $host = parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST);
+        $refPath = (string)parse_url($ref, PHP_URL_PATH);
+        if ($ref !== '' && parse_url($ref, PHP_URL_HOST) === $host && rtrim($refPath, '/') !== rtrim(base_path() . $path, '/')) {
+            header('Location: ' . $ref, true, 303);
+            exit;
+        }
+        redirect(Auth::user() ? '/account' : '/login');
     }
 }
