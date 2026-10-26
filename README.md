@@ -1,5 +1,7 @@
 # Servease: book ID-checked home service pros
 
+**[Live demo](https://servease-demo.onrender.com)** · one-click Customer, Pro and Admin demo accounts on the sign-in screen (free hosting: the first visit can take about a minute to wake up).
+
 Servease connects people who need help at home (aircon cleaning, plumbing, electrical work, house cleaning, tutoring and more) with **verified local pros**. Customers browse services or post a job to get quotes, then chat, book, pay and review in one place. Pros get a profile, a job board and a dashboard to run their business. Admins verify pros and keep the marketplace healthy.
 
 It opens like an app: a splash screen, three intro slides, then Log in or Create account (as a customer or a service provider). Every page needs an account. On a phone it has a bottom tab bar (Home, Category, Bookings, Inbox, Profile), a location header, a swipeable banner and bottom-sheet filters; on a laptop it's a full website with the same Blue & Yellow look: a blue banner beside your next booking, category cards, service cards with a filter sidebar, and tables for bookings and quotes.
